@@ -2,10 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-
+/* Font files load via expo-font in app/_layout.tsx (all platforms including web).
+   Do not use @font-face url(...) here — NativeWind CSS interop does not support local asset URLs. */
 
 @layer base {
   body {
-    font-family: "GoogleSansFlex", sans-serif;
+    font-family: "GoogleSansFlex", system-ui, sans-serif;
   }
 }

@@ -9,8 +9,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["GoogleSansFlex", "sans-serif"],
-        google: ["GoogleSansFlex", "sans-serif"],
+        sans: ["GoogleSansFlex", "system-ui", "sans-serif"],
+        google: ["GoogleSansFlex", "system-ui", "sans-serif"],
       },
       colors: {
         primary: {

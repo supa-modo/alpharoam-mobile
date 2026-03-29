@@ -19,36 +19,39 @@ import { useColorScheme } from "nativewind";
 import { Ionicons } from "@expo/vector-icons";
 import { ThemeToggle } from "../../components/ThemeToggle";
 
+const AnimatedText = Animated.createAnimatedComponent(Text);
+
 const { width, height } = Dimensions.get("window");
 
 const SLIDES = [
   {
-    title: "Roam Smarter\nAcross 190+\nCountries",
+    title: "Roam Smarter\nAcross 190+ Countries",
     tag: "GLOBAL COVERAGE",
     description:
-      "Activate eSIM data plans before you land and stay connected worldwide — no roaming fees, no surprises.",
+      "Activate eSIM data plans before you land and stay connected worldwide — no roaming fees.",
     image: require("../../assets/images/hero1.png"),
     accent: "#6C63FF",
     accentSoft: "#6C63FF22",
   },
   {
-    title: "Flexible Plans\nThat Fit\nYour Journey",
-    tag: "SMART PRICING",
-    description:
-      "Choose daily, weekly, or monthly packs with transparent pricing and real-time usage tracking.",
-    image: require("../../assets/images/hero3.png"),
-    accent: "#00C9A7",
-    accentSoft: "#00C9A722",
-  },
-  {
-    title: "Instant Setup\nNo Physical\nSIMs Needed",
+    title: "Instant Setup\nNo Physical SIMs Needed",
     tag: "ZERO HASSLE",
     description:
       "Install your eSIM in minutes directly from the app and keep your main number fully active.",
-    image: require("../../assets/images/hero1.png"),
+    image: require("../../assets/images/hero33.png"),
     accent: "#FF6B6B",
     accentSoft: "#FF6B6B22",
   },
+  {
+    title: "Flexible Plans\nThat Fit Your Journey",
+    tag: "SMART PRICING",
+    description:
+      "Choose daily, weekly, or monthly packs with transparent pricing and real-time usage tracking.",
+    image: require("../../assets/images/hero22.png"),
+    accent: "#00C9A7",
+    accentSoft: "#00C9A722",
+  },
+
 ];
 
 const AUTO_PLAY_INTERVAL = 5000;
@@ -66,14 +69,13 @@ export default function OnboardingScreen() {
   // Animated values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
 
   const currentSlide = SLIDES[page];
 
   const animateToPage = (nextPage: number) => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: -20, duration: 200, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -20, duration: 300, useNativeDriver: true }),
     ]).start(() => {
       setPage(nextPage);
       slideAnim.setValue(20);
@@ -114,11 +116,10 @@ export default function OnboardingScreen() {
     router.replace("/(auth)/login");
   };
 
-  const bg = isDark ? "#0A0A0F" : "#F8F7FF";
-  const cardBg = isDark ? "#13131A" : "#FFFFFF";
+  const bg = isDark ? "#0A0A0F" : "#fff";
   const textPrimary = isDark ? "#FAFAFA" : "#0D0D1A";
   const textSecondary = isDark ? "#8888AA" : "#7070A0";
-  const borderColor = isDark ? "#222230" : "#E8E7F0";
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
@@ -135,25 +136,35 @@ export default function OnboardingScreen() {
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          scrollEventThrottle={16}
           onMomentumScrollEnd={handleScroll}
           style={StyleSheet.absoluteFill}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
         >
           {SLIDES.map((slide, i) => (
-            <View key={i} style={{ width, height: height * 0.62 }}>
+            <View key={i} style={{ width, height: height * 0.6 }}>
               <Image
                 source={slide.image}
-                style={{ width, height: height * 0.62 }}
+                style={{ width, height: height * 0.6 }}
                 resizeMode="cover"
               />
               {/* Gradient overlay */}
               <LinearGradient
-                colors={isDark
-                  ? ["transparent", "rgba(10,10,15,0.3)", bg]
-                  : ["transparent", "rgba(248,247,255,0.25)", bg]
+                colors={
+                  isDark
+                    ? ["transparent", "rgba(10,10,15, 0.65)", "rgba(10,10,15, 1)", bg]
+                    : ["transparent", "rgba(255,255,255,0.8)", "rgba(255,255,255,1)", bg]
                 }
-                locations={[0, 0.55, 1]}
-                style={StyleSheet.absoluteFill}
+                locations={[0, 0.4, 0.7, 1]}
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  width: "100%",
+                  height: height * 0.25,
+                }}
               />
               {/* Top gradient for status bar */}
               <LinearGradient
@@ -162,71 +173,92 @@ export default function OnboardingScreen() {
                   : [bg, "transparent"]
                 }
                 locations={[0, 1]}
-                style={[StyleSheet.absoluteFill, { height: 120, bottom: undefined }]}
+                style={[StyleSheet.absoluteFill, { height: 150, bottom: undefined }]}
               />
             </View>
           ))}
         </ScrollView>
 
         {/* Top bar */}
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <View style={styles.logoRow}>
-            <Image
-              source={require("../../assets/icon2.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
+        <View style={[styles.topBar, { paddingTop: insets.top + 20 }]}>
+
           <View style={styles.topBarRight}>
-            <Pressable onPress={handleSkip} style={[styles.skipPill, { borderColor }]}>
-              <Text style={[styles.skipText, { color: textSecondary }]}>Skip</Text>
-            </Pressable>
             <ThemeToggle />
+            {/* separate light border color for light mode */}
+            <Pressable onPress={handleSkip} style={[styles.skipPill, { borderColor: isDark ? "#fff" : "rgba(0,0,0,0.4)" }]}>
+              <Text style={[styles.skipText, { color: isDark ? "#fff" : "rgba(0,0,0,0.4)" }]}>Skip</Text>
+            </Pressable>
+
           </View>
         </View>
 
-        {/* Slide indicators (top right area, thin lines) */}
-        <View style={[styles.indicatorRow, { top: insets.top + 14 }]}>
-          {SLIDES.map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.indicatorBar,
-                {
-                  backgroundColor: i === page
-                    ? currentSlide.accent
-                    : (isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)"),
-                  width: i === page ? 24 : 6,
-                },
-              ]}
-            />
-          ))}
-        </View>
+        <Animated.View
+          style={[
+            styles.indicatorRow,
+            { bottom: insets.bottom + 32 },
+          ]}
+        >
+          {SLIDES.map((_, i) => {
+            const inputRange = [
+              (i - 1) * width,
+              i * width,
+              (i + 1) * width,
+            ];
+
+            const animatedWidth = scrollX.interpolate({
+              inputRange,
+              outputRange: [8, 28, 8],
+              extrapolate: "clamp",
+            });
+
+            const animatedOpacity = scrollX.interpolate({
+              inputRange,
+              outputRange: [0.4, 1, 0.4],
+              extrapolate: "clamp",
+            });
+
+            return (
+              <Animated.View
+                key={i}
+                style={[
+                  styles.indicatorBar,
+                  {
+                    width: animatedWidth,
+                    opacity: animatedOpacity,
+                    backgroundColor: "#0061cf",
+                    marginRight: 7,
+                  },
+                ]}
+              />
+            );
+          })}
+        </Animated.View>
+
       </View>
 
       {/* Content card */}
       <View style={[styles.contentCard, { backgroundColor: bg }]}>
 
-        {/* Tag chip */}
-        <Animated.View
-          style={[
-            styles.tagChip,
-            {
-              backgroundColor: currentSlide.accentSoft,
-              borderColor: currentSlide.accent + "44",
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={[styles.tagDot, { backgroundColor: currentSlide.accent }]} />
-          <Text style={[styles.tagText, { color: currentSlide.accent }]}>
-            {currentSlide.tag}
-          </Text>
-        </Animated.View>
+        {/* Logo */}
+        <View style={styles.logoRow} >
+          {isDark ? (
+            <Image
+              source={require("../../assets/icon2dark.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          ) : (
+            <Image
+              source={require("../../assets/icon2.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          )}
+        </View>
 
         {/* Headline */}
-        <Animated.Text
+        <AnimatedText
+
           style={[
             styles.headline,
             {
@@ -237,10 +269,10 @@ export default function OnboardingScreen() {
           ]}
         >
           {currentSlide.title}
-        </Animated.Text>
+        </AnimatedText>
 
         {/* Description */}
-        <Animated.Text
+        <AnimatedText
           style={[
             styles.description,
             {
@@ -251,16 +283,17 @@ export default function OnboardingScreen() {
           ]}
         >
           {currentSlide.description}
-        </Animated.Text>
+        </AnimatedText>
 
         {/* CTA Button */}
         <View style={{ marginTop: 24, paddingBottom: insets.bottom + 16 }}>
           <Pressable
+            className="flex flex-row items-center justify-center border-2 border-primary-500 dark:border-primary-400 rounded-full py-3.5 gap-2 mt-auto"
             onPress={handleGetStarted}
             style={({ pressed }) => [
               styles.ctaButton,
               {
-                backgroundColor: currentSlide.accent,
+
                 opacity: pressed ? 0.88 : 1,
                 transform: [{ scale: pressed ? 0.97 : 1 }],
                 ...Platform.select({
@@ -270,14 +303,14 @@ export default function OnboardingScreen() {
                     shadowOpacity: 0.45,
                     shadowRadius: 16,
                   },
-                  android: { elevation: 10 },
+                  android: { elevation: 10, backgroundColor: currentSlide.accent, },
                 }),
               },
             ]}
           >
-            <Text style={styles.ctaText}>Get Started</Text>
-            <View style={styles.ctaArrow}>
-              <Ionicons name="arrow-forward" size={16} color={currentSlide.accent} />
+            <Text className="text-primary-500 dark:text-primary-400" style={[styles.ctaText]}>Continue</Text>
+            <View >
+              <Ionicons name="arrow-forward" size={16} color={isDark ? "#3383eb" : "#0064e6"} />
             </View>
           </Pressable>
 
@@ -286,7 +319,7 @@ export default function OnboardingScreen() {
             <Text style={[styles.signinText, { color: textSecondary }]}>
               Already have an account?{" "}
             </Text>
-            <Text style={[styles.signinLink, { color: currentSlide.accent }]}>
+            <Text style={[styles.signinLink]} className="text-primary-600">
               Sign in
             </Text>
           </Pressable>
@@ -301,13 +334,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   imageContainer: {
-    height: height * 0.62,
+    height: height * 0.6,
     overflow: "hidden",
   },
   topBar: {
     position: "absolute",
     top: 0,
-    left: 0,
     right: 0,
     flexDirection: "row",
     alignItems: "center",
@@ -318,10 +350,11 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 8,
   },
   logo: {
-    width: 140,
-    height: 44,
+    width: 180,
+    height: 60,
   },
   topBarRight: {
     flexDirection: "row",
@@ -329,8 +362,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   skipPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingHorizontal: 20,
+    paddingVertical: 4,
     borderRadius: 100,
     borderWidth: 1,
     backgroundColor: "rgba(255,255,255,0.08)",
@@ -342,15 +375,14 @@ const styles = StyleSheet.create({
   },
   indicatorRow: {
     position: "absolute",
-    right: 20,
+    left: 30,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
     zIndex: 10,
   },
   indicatorBar: {
-    height: 4,
-    borderRadius: 2,
+    height: 8,
+    borderRadius: 100,
   },
   contentCard: {
     flex: 1,
@@ -358,53 +390,27 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     marginTop: -20,
   },
-  tagChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 100,
-    borderWidth: 1,
-    marginBottom: 14,
-    gap: 6,
-  },
-  tagDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  tagText: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.5,
-  },
   headline: {
-    fontSize: 34,
-    fontWeight: "800",
-    lineHeight: 40,
-    letterSpacing: -0.8,
+    fontSize: 26,
+    fontWeight: "700",
+    lineHeight: 36,
     marginBottom: 12,
+    letterSpacing: -0.2,
   },
   description: {
     fontSize: 15,
     lineHeight: 22,
     fontWeight: "400",
     letterSpacing: 0.1,
+    marginBottom: 8,
   },
   ctaButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 16,
-    paddingVertical: 17,
     paddingHorizontal: 24,
-    gap: 10,
+
   },
   ctaText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14.5,
+    fontWeight: "600",
     letterSpacing: 0.2,
   },
   ctaArrow: {
@@ -418,14 +424,14 @@ const styles = StyleSheet.create({
   signinRow: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 18,
     paddingBottom: 4,
   },
   signinText: {
     fontSize: 14,
   },
   signinLink: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

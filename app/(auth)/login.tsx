@@ -7,6 +7,7 @@ import {
   Image,
   StyleSheet,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "../../components/Text";
@@ -34,6 +35,7 @@ import Animated, {
 import React from "react";
 import { useColorScheme } from "nativewind";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { StatusBar } from "expo-status-bar";
 
 const schema = z.object({
   email_or_phone: z.string().min(1, "Required"),
@@ -76,7 +78,7 @@ export default function LoginScreen() {
           ? err.message
           : err && typeof err === "object" && "response" in err
             ? (err as { response?: { data?: { error?: string } } }).response?.data
-                ?.error
+              ?.error
             : null;
       setApiError(message ?? "Invalid credentials. Please try again.");
     }
@@ -106,12 +108,17 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       style={[styles.flex, { paddingTop: insets.top }]}
     >
+      <StatusBar
+        style={isDark ? "light" : "dark"}
+        backgroundColor="transparent"
+        translucent
+      />
       {/* Multi-layer background for depth */}
       <LinearGradient
         colors={
           isDark
-            ? ["#020B18", "#041428", "#061C36"]
-            : ["#EEF2FF", "#E5E7EB", "#DBEAFE"]
+            ? ["#0a0a0f", "#111827", "#17171a"]
+            : ["#ffffff", "#f8f9fa", "#f1f5f9"]
         }
         style={StyleSheet.absoluteFillObject}
       />
@@ -144,16 +151,27 @@ export default function LoginScreen() {
           style={styles.heroSection}
         >
           <View style={styles.heroHeader}>
-            <Image
-              source={require("../../assets/icon2.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            {/* Logo */}
+            <View >
+              {isDark ? (
+                <Image
+                  source={require("../../assets/icon2dark.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Image
+                  source={require("../../assets/icon2.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
             <ThemeToggle />
           </View>
 
           <Text style={[styles.heroTitle, !isDark && { color: "#0f172a" }]}>
-            Welcome back to AlphaRoam
+            Welcome back !
           </Text>
           <Text
             style={[styles.heroSubtitle, !isDark && { color: "rgba(71,85,105,0.9)" }]}
@@ -202,7 +220,7 @@ export default function LoginScreen() {
             name="email_or_phone"
             render={({ field: { onChange, value } }) => (
               <LabeledInput
-                label="Email or Phone"
+                label="Your Email or Phone"
                 labelClassName="mb-1.5"
                 placeholder="you@example.com"
                 placeholderTextColor="rgba(148,163,184,0.4)"
@@ -224,7 +242,7 @@ export default function LoginScreen() {
             name="password"
             render={({ field: { onChange, value } }) => (
               <LabeledInput
-                label="Password"
+                label="Account Password"
                 labelClassName="mb-1.5"
                 value={value}
                 onChangeText={onChange}
@@ -266,7 +284,7 @@ export default function LoginScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.ctaGradient}
             >
-           
+
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
@@ -286,89 +304,74 @@ export default function LoginScreen() {
           entering={FadeIn.duration(400).delay(500)}
           style={styles.dividerRow}
         >
-          <View
-          className="ml-5 bg-gray-400 dark:bg-slate-500"
-            style={[
-              styles.dividerLine,
-              
-            ]}
-          />
-          <Text
-            style={[
-              styles.dividerText,
-              !isDark && { color: "rgba(71,85,105,0.6)" },
-              isDark && { color: "rgba(148,163,184,0.7)" },
-            ]}
-          >
+          <View style={styles.dividerLine} />
+          <Text style={[styles.dividerLabel, !isDark && { color: "rgba(71,85,105,0.55)" }]}>
             or continue with
           </Text>
-          <View
-          className="mr-5 bg-gray-400 dark:bg-slate-500"
-            style={[
-              styles.dividerLine,
-              
-            ]}
-          />
+          <View style={styles.dividerLine} />
         </Animated.View>
 
-        {/* ── Social buttons ── */}
+        {/* Social buttons */}
         <Animated.View
           entering={FadeIn.duration(500).delay(400).springify()}
-          style={styles.socialRow}
+          className="mx-auto flex flex-row gap-3 mb-8 items-center justify-center"
         >
           {/* Google */}
           <Pressable
-            className="bg-white dark:bg-slate-900/80 border border-gray-200 dark:border-gray-700 rounded-full"
+            className="flex-1 border border-gray-300 dark:border-gray-400 rounded-full"
             style={({ pressed }) => [
               styles.socialBtn,
+              isDark ? styles.socialBtnDark : styles.socialBtnLight,
               pressed && styles.socialBtnPressed,
             ]}
             disabled={socialLoading !== null}
             onPress={() => handleSocialLogin("google")}
           >
+            {/* Real Google "G" logo via SVG */}
             <View style={styles.socialBtnInner}>
-              {/* Google multicolour "G" SVG-equivalent using nested views */}
-              <View style={styles.googleIconWrapper}>
-              <Ionicons name="logo-google" size={18}
-               color= "#ef4444"
-               />
-              </View>
-              <Text
-                style={[
-                  styles.socialBtnText,
-                  !isDark && styles.socialBtnTextLight,
-                ]}
-              >
-                {socialLoading === "google" ? "Connecting..." : "Google"}
+              <Svg width={18} height={18} viewBox="0 0 24 24">
+                <Path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <Path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <Path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                  fill="#FBBC05"
+                />
+                <Path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  fill="#EA4335"
+                />
+              </Svg>
+              <Text style={[styles.socialBtnText, !isDark && styles.socialBtnTextLight]}>
+                {socialLoading === "google" ? "Connecting…" : "Google"}
               </Text>
             </View>
           </Pressable>
 
           {/* Apple */}
           <Pressable
-            className="bg-white dark:bg-slate-900/80 border border-gray-200 dark:border-gray-700 rounded-full"
+            className="flex-1 border border-gray-300 dark:border-gray-400 rounded-full"
             style={({ pressed }) => [
               styles.socialBtn,
+              isDark ? styles.socialBtnDark : styles.socialBtnLight,
               pressed && styles.socialBtnPressed,
             ]}
             disabled={socialLoading !== null}
             onPress={() => handleSocialLogin("apple")}
           >
             <View style={styles.socialBtnInner}>
-              <View style={styles.appleIconWrapper}>
-                <Ionicons
-                  name="logo-apple"
-                  size={18}
-                  color={isDark ? "#fff" : "#0f172a"}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.socialBtnText,
-                  !isDark && styles.socialBtnTextLight,
-                ]}
-              >
-                {socialLoading === "apple" ? "Connecting..." : "Apple"}
+              <Ionicons
+                name="logo-apple"
+                size={18}
+                color={isDark ? "#FFFFFF" : "#0f172a"}
+              />
+              <Text style={[styles.socialBtnText, !isDark && styles.socialBtnTextLight]}>
+                {socialLoading === "apple" ? "Connecting…" : "Apple"}
               </Text>
             </View>
           </Pressable>
@@ -461,15 +464,14 @@ const styles = StyleSheet.create({
   logo: {
     width: 180,
     height: 70,
-    marginBottom: 15,
   },
   heroTitle: {
-    fontSize: 32,
+    fontSize: 29,
     fontWeight: "800",
     color: "#F8FAFC",
     lineHeight: 50,
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: 0.6,
+    marginBottom: 6,
     marginLeft: 5,
   },
   heroSubtitle: {
@@ -536,7 +538,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
-  
+
   ctaContent: {
     flexDirection: "row",
     alignItems: "center",
@@ -558,46 +560,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
   dividerText: {
     fontSize: 12,
     fontWeight: "600",
   },
 
-  /* ── Social buttons ── */
-  socialRow: {
-    flexDirection: "column",
-    gap: 12,
-    marginBottom: 32,
+
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 10,
   },
-  socialBtn: {
+  dividerLine: {
     flex: 1,
-    
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(148,163,184,0.35)",
+  },
+  dividerLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(148,163,184,0.7)",
+    letterSpacing: 0.4,
+  },
+
+
+  socialBtn: {
     overflow: "hidden",
-  
   },
-  // Dark mode: semi-transparent white glass pill
   socialBtnDark: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    shadowColor: "#000",
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
-  // Light mode: solid white card with visible border
   socialBtnLight: {
     backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.10)",
-    shadowColor: "#3B82F6",
   },
   socialBtnPressed: {
     opacity: 0.72,
@@ -608,32 +603,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
-    gap: 10,
-  },
-  // Google "G" badge
-  googleIconWrapper: {
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-
-  },
-
-  appleIconWrapper: {
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
+    gap: 8,
   },
   socialBtnText: {
-    // Dark mode: bright white
     color: "rgba(255,255,255,0.92)",
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     letterSpacing: 0.2,
   },
   socialBtnTextLight: {
-    // Light mode: near-black for full contrast
     color: "#0f172a",
   },
 
@@ -642,14 +620,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
+
   },
   footerText: {
     color: "rgba(148,163,184,0.6)",
-    fontSize: 14,
+    fontSize: 13.5,
   },
   footerLink: {
     color: "#93C5FD",
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 13.5,
+    fontWeight: "600",
   },
+
+
 });

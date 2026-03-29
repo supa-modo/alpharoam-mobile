@@ -5,6 +5,7 @@
 import React, { useMemo, useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Text } from "../Text";
+import { appFontFamilyForSvgFontWeight } from "../constants/typography";
 import Svg, {
   Path,
   Defs,
@@ -126,9 +127,10 @@ export function SpendingLineChart({
             <SvgText
               x={PAD_LEFT - 6} y={s.y + 4}
               textAnchor="end"
+              fontFamily={appFontFamilyForSvgFontWeight("600")}
               fontSize={9}
               fill={labelColor}
-              fontWeight="600"
+              fontWeight="normal"
             >
               {s.label}
             </SvgText>
@@ -165,9 +167,10 @@ export function SpendingLineChart({
             <SvgText
               x={pt.x} y={CHART_HEIGHT - 4}
               textAnchor="middle"
+              fontFamily={appFontFamilyForSvgFontWeight("600")}
               fontSize={9}
               fill={labelColor}
-              fontWeight="600"
+              fontWeight="normal"
             >
               {pt.label}
             </SvgText>

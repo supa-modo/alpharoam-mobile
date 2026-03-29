@@ -9,6 +9,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/themeStore";
+import { GOOGLE_SANS_FLEX_24PT_REQUIRES } from "../constants/typography";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,9 +21,7 @@ function RootLayoutNav() {
   const [hydrated, setHydrated] = useState(false);
   const [themeHydrated, setThemeHydrated] = useState(false);
 
-  const [fontsLoaded] = useFonts({
-    GoogleSansFlex: require("../assets/fonts/GoogleSansFlex.ttf"),
-  });
+  const [fontsLoaded] = useFonts(GOOGLE_SANS_FLEX_24PT_REQUIRES);
 
   useEffect(() => {
     useAuthStore.getState().hydrate().then(() => setHydrated(true));

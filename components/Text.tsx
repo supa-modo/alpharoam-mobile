@@ -1,14 +1,17 @@
 import React from "react";
-import { Text as RNText, TextProps } from "react-native";
+import { Platform, Text as RNText, TextProps } from "react-native";
+import { appTextTypographyOverrides } from "../constants/typography";
 
-const defaultFontStyle = { fontFamily: "GoogleSansFlex" as const };
+const androidTextMetrics =
+  Platform.OS === "android" ? ({ includeFontPadding: false } as const) : null;
 
 export function Text(props: TextProps & { allowFontScaling?: boolean }) {
   const { style, allowFontScaling, ...rest } = props;
+  const typography = appTextTypographyOverrides(style);
   return (
     <RNText
       allowFontScaling={allowFontScaling ?? false}
-      style={[style, defaultFontStyle]}
+      style={[style, androidTextMetrics, typography]}
       {...rest}
     />
   );

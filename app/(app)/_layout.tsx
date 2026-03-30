@@ -17,10 +17,11 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 const TABS = [
   { name: "index", label: "Home", icon: "home-outline", iconActive: "home" },
+  { name: "plans", label: "Plans", icon: "globe-outline", iconActive: "globe" },
   { name: "profile", label: "Profile", icon: "person-outline", iconActive: "person" },
 ];
 
-const VISIBLE_TAB_NAMES = ["index", "profile"] as const;
+const VISIBLE_TAB_NAMES = ["index", "plans", "profile"] as const;
 
 const ACTIVE_COLOR   = "#3B82F6";
 const DURATION       = 180;
@@ -137,9 +138,8 @@ export default function AppLayout() {
         screenOptions={{ headerShown: false }}
       >
         <Tabs.Screen name="index" />
+        <Tabs.Screen name="plans" />
         <Tabs.Screen name="profile" />
-        <Tabs.Screen name="plans" options={{ href: null }} />
-        <Tabs.Screen name="checkout" options={{ href: null }} />
       </Tabs>
     </AuthBoundary>
   );
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(15,23,42,0.07)",
   },
 
-  // Each tab = exact 25% width
+  // Three tabs share width equally (flex: 1 each)
   tabItem: {
     flex: 1,
     alignItems: "center",

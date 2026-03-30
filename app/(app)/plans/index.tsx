@@ -92,13 +92,14 @@ export default function PlansScreen() {
     <ScrollView
       style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
       contentContainerStyle={{
-        paddingTop: insets.top + 16,
+        paddingTop: insets.top + 8,
         paddingBottom: 120,
       }}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
+          <Text style={[styles.kicker, isDark && styles.textMutedDark]}>DESTINATIONS</Text>
           <Text style={[styles.title, isDark && styles.textLight]}>Browse plans</Text>
           <Text style={[styles.subtitle, isDark && styles.textMutedDark]}>
             Pick a country to see available eSIM data plans.
@@ -230,24 +231,31 @@ export default function PlansScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  bgLight: { backgroundColor: "#F8FAFC" },
+  bgLight: { backgroundColor: "#F1F5F9" },
   bgDark: { backgroundColor: "#020617" },
   textLight: { color: "#F8FAFC" },
-  textMutedDark: { color: "rgba(148,163,184,0.7)" },
+  textMutedDark: { color: "rgba(148,163,184,0.8)" },
 
   header: {
-    paddingHorizontal: 20,
-    marginBottom: 14,
+    paddingHorizontal: 22,
+    marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  title: { fontSize: 22, fontWeight: "800", color: "#0F172A" },
-  subtitle: { fontSize: 12, color: "#64748B", marginTop: 3 },
+  kicker: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.1,
+    color: "#64748B",
+    marginBottom: 6,
+  },
+  title: { fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.4 },
+  subtitle: { fontSize: 12, color: "#64748B", marginTop: 4, fontWeight: "500", lineHeight: 17 },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -255,21 +263,21 @@ const styles = StyleSheet.create({
   iconBtnDark: { backgroundColor: "rgba(147,197,253,0.12)" },
 
   searchWrap: {
-    marginHorizontal: 20,
+    marginHorizontal: 22,
     marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 14,
-    height: 46,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 48,
+    borderRadius: 18,
     backgroundColor: "rgba(15,23,42,0.04)",
   },
   searchInput: { flex: 1, height: 46, fontSize: 14, color: "#0F172A" },
 
   regionRow: {
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 22,
+    paddingBottom: 12,
     gap: 10,
   },
   regionChip: {
@@ -302,18 +310,18 @@ const styles = StyleSheet.create({
   retryBtn: { marginTop: 6, backgroundColor: "#2563EB", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 },
   retryText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
-  listWrap: { paddingHorizontal: 20, gap: 10 },
+  listWrap: { paddingHorizontal: 22, gap: 12 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: 14,
-    borderRadius: 18,
+    padding: 16,
+    borderRadius: 20,
   },
   flagCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(37,99,235,0.12)",
@@ -327,14 +335,14 @@ const styles = StyleSheet.create({
 
   cardLight: {
     backgroundColor: "#FFFFFF",
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardDark: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },

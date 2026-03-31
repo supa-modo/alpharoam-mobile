@@ -14,6 +14,9 @@ import { Text } from "../../components/Text";
 import { AuthBoundary } from "../../components/AuthBoundary";
 import React, { useEffect } from "react";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchPlans } from "../../services/plans";
+import * as Haptics from "expo-haptics";
 
 const TABS = [
   { name: "index", label: "Home", icon: "home-outline", iconActive: "home" },
@@ -83,6 +86,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets  = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark  = colorScheme === "dark";
+  const queryClient = useQueryClient();
 
   const activeRouteName = state.routes[state.index]?.name ?? "";
   if (!VISIBLE_TAB_NAMES.includes(activeRouteName as any)) {
@@ -117,6 +121,14 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                   target: route.key,
                   canPreventDefault: true,
                 });
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (route.name === "plans") {
+                  void queryClient.prefetchQuery({
+                    queryKey: ["alpharoam", "plans"],
+                    queryFn: fetchPlans,
+                    staleTime: 1000 * 60 * 10,
+                  });
+                }
                 if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
               }}
               onLongPress={() =>

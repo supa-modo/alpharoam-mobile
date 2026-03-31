@@ -272,7 +272,7 @@ export default function CountryPlansScreen() {
       <AppBottomSheet
         visible={!!detailPlan}
         onClose={closePlanSheet}
-        heightRatio={0.52}
+        heightRatio={0.6}
         title="Plan details"
         subtitle={countryName}
         icon="cellular-outline"
@@ -287,6 +287,7 @@ export default function CountryPlansScreen() {
                 pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
                 selecting && { opacity: 0.7 },
               ]}
+              className="rounded-full py-3"
             >
               <LinearGradient
                 colors={["#2563EB", "#1D4ED8"]}
@@ -493,7 +494,7 @@ const styles = StyleSheet.create({
   },
   bulletDotDark: { backgroundColor: "#93C5FD" },
   bulletText: { flex: 1, fontSize: 13, color: "#475569", lineHeight: 20, fontWeight: "500" },
-  selectPlanBtn: { borderRadius: 16, overflow: "hidden" },
+  selectPlanBtn: { overflow: "hidden" },
   selectPlanGradient: {
     flexDirection: "row",
     alignItems: "center",

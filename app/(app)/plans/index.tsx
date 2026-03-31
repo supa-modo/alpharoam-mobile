@@ -11,10 +11,12 @@ import { useColorScheme } from "nativewind";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 import { Text } from "../../../components/Text";
 import { TextInput } from "../../../components/TextInput";
 import { fetchPlans } from "../../../services/plans";
+import { iso2ToFlagEmoji } from "../../../lib/countryFlags";
 import type { AlphaRoamCountry, NormalizedPlan } from "../../../types/plans";
 
 type CountryRow = {
@@ -164,12 +166,28 @@ export default function PlansScreen() {
       </ScrollView>
 
       {isLoading && !plans ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#2563EB" />
+        <Animated.View entering={FadeIn.duration(180)} style={styles.listWrap}>
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <View
+              key={`skeleton-${idx}`}
+              style={[
+                styles.row,
+                styles.skeletonRow,
+                isDark ? styles.skeletonRowDark : styles.skeletonRowLight,
+              ]}
+            >
+              <View style={[styles.skeletonFlag, isDark && styles.skeletonMutedDark]} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <View style={[styles.skeletonLineWide, isDark && styles.skeletonMutedDark]} />
+                <View style={[styles.skeletonLineShort, isDark && styles.skeletonMutedDark]} />
+              </View>
+              <ActivityIndicator size="small" color={isDark ? "#93C5FD" : "#2563EB"} />
+            </View>
+          ))}
           <Text style={[styles.loadingText, isDark && styles.textMutedDark]}>
-            Loading plans...
+            Loading available destinations...
           </Text>
-        </View>
+        </Animated.View>
       ) : error ? (
         <View style={styles.center}>
           <Ionicons
@@ -186,35 +204,46 @@ export default function PlansScreen() {
         </View>
       ) : (
         <View style={styles.listWrap}>
-          {filtered.map((country) => (
-            <Pressable
-              key={country.iso2}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/plans/country/[iso2]" as const,
-                  params: { iso2: country.iso2, name: country.name },
-                })
-              }
-              style={[styles.row, isDark ? styles.cardDark : styles.cardLight]}
-            >
-              <View style={styles.flagCircle}>
-                <Text style={styles.flagText}>{country.iso2.toUpperCase()}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.countryName, isDark && styles.textLight]}>
-                  {country.name}
-                </Text>
-                <Text style={[styles.countryMeta, isDark && styles.textMutedDark]}>
-                  {country.plansCount} plan{country.plansCount === 1 ? "" : "s"}
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)"}
-              />
-            </Pressable>
-          ))}
+          {filtered.map((country) => {
+            const flagEmoji = iso2ToFlagEmoji(country.iso2);
+            return (
+              <Pressable
+                key={country.iso2}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/plans/country/[iso2]" as const,
+                    params: { iso2: country.iso2, name: country.name },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.row,
+                  isDark ? styles.cardDark : styles.cardLight,
+                  pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                {flagEmoji ? (
+                  <Text style={styles.flagEmoji}>{flagEmoji}</Text>
+                ) : (
+                  <View style={styles.flagCircle}>
+                    <Text style={styles.flagText}>{country.iso2.toUpperCase()}</Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.countryName, isDark && styles.textLight]}>
+                    {country.name}
+                  </Text>
+                  <Text style={[styles.countryMeta, isDark && styles.textMutedDark]}>
+                    {country.plansCount} plan{country.plansCount === 1 ? "" : "s"}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)"}
+                />
+              </Pressable>
+            );
+          })}
 
           {filtered.length === 0 ? (
             <View style={styles.emptyWrap}>
@@ -327,11 +356,43 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(37,99,235,0.12)",
   },
   flagText: { fontSize: 11, fontWeight: "800", color: "#1D4ED8" },
+  flagEmoji: {
+    width: 44,
+    textAlign: "center",
+    fontSize: 28,
+    lineHeight: 32,
+  },
   countryName: { fontSize: 14, fontWeight: "800", color: "#0F172A" },
   countryMeta: { fontSize: 12, color: "#64748B", marginTop: 2 },
 
   emptyWrap: { paddingTop: 30, alignItems: "center" },
   emptyText: { fontSize: 12, color: "#64748B", fontWeight: "600" },
+  skeletonRow: { minHeight: 76 },
+  skeletonRowLight: { backgroundColor: "#FFFFFF" },
+  skeletonRowDark: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  skeletonMutedDark: { backgroundColor: "rgba(148,163,184,0.2)" },
+  skeletonFlag: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(100,116,139,0.18)",
+  },
+  skeletonLineWide: {
+    width: "70%",
+    height: 12,
+    borderRadius: 7,
+    backgroundColor: "rgba(100,116,139,0.18)",
+  },
+  skeletonLineShort: {
+    width: "45%",
+    height: 10,
+    borderRadius: 7,
+    backgroundColor: "rgba(100,116,139,0.14)",
+  },
 
   cardLight: {
     backgroundColor: "#FFFFFF",

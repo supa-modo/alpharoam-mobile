@@ -142,29 +142,52 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
     >
       {!successId && selected ? (
         <>
-          <View style={[styles.heroSummary, isDark ? styles.cardDark : styles.cardLight]}>
-            <View style={styles.isoChip}>
-              <Text style={styles.isoChipText}>{selected.countryIso2.toUpperCase()}</Text>
+          <LinearGradient
+            colors={isDark ? ["#102247", "#173A7A"] : ["#EFF6FF", "#DBEAFE"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.heroSummary, isDark ? styles.heroSummaryDark : styles.heroSummaryLight]}
+          >
+            <View style={styles.summaryTopRow}>
+              <View style={styles.summaryTitleCol}>
+                <Text style={styles.summaryEyebrow}>
+                  {selected.countryName} · {selected.plan.validityDays ?? 30} days
+                </Text>
+                <Text style={[styles.planTitle, isDark && styles.textLight]} numberOfLines={2}>
+                  {selected.plan.name}
+                </Text>
+                <Text style={[styles.planMeta, isDark && styles.textMutedDark]}>{formatMeta()}</Text>
+              </View>
+              <View style={styles.pricePill}>
+                <Text style={styles.pricePillValue}>{formatUsd(pricing.total)}</Text>
+                <Text style={styles.pricePillCurrency}>USD</Text>
+              </View>
             </View>
-            <Text style={[styles.planTitle, isDark && styles.textLight]} numberOfLines={2}>
-              {selected.plan.name}
-            </Text>
-            <Text style={[styles.planMeta, isDark && styles.textMutedDark]}>{formatMeta()}</Text>
-            <View style={styles.priceRow}>
-              <Text style={[styles.priceLabel, isDark && styles.textMutedDark]}>Total due</Text>
-              <Text style={[styles.priceHuge, isDark && styles.textLight]}>
-                {formatUsd(pricing.total)}
-              </Text>
+            <View style={[styles.summaryDivider, isDark && styles.summaryDividerDark]} />
+            <View style={styles.summaryStatRow}>
+              <SummaryStat
+                label="Data"
+                value={selected.plan.dataGb !== null ? `${selected.plan.dataGb} GB` : "Unlimited"}
+                isDark={isDark}
+              />
+              <SummaryStat
+                label="Days"
+                value={selected.plan.validityDays !== null ? String(selected.plan.validityDays) : "30"}
+                isDark={isDark}
+              />
+              <SummaryStat label="Speed" value="4G/5G" isDark={isDark} />
             </View>
-          </View>
+          </LinearGradient>
 
           <Text style={[styles.blockLabel, isDark && styles.textMutedDark]}>ORDER SUMMARY</Text>
           <View style={[styles.rowCard, isDark ? styles.cardDark : styles.cardLight]}>
             <RowItem label="Destination" value={selected.countryName} isDark={isDark} />
-            <RowItem label="Plan" value={selected.plan.name} isDark={isDark} last />
+            <RowItem label="Plan" value={selected.plan.name} isDark={isDark} />
+            <RowItem label="Subtotal" value={formatUsd(pricing.price)} isDark={isDark} />
+            <RowItem label="Tax" value="$0.00" isDark={isDark} last />
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <View style={styles.totalRow}>
-              <Text style={[styles.totalLabel, isDark && styles.textLight]}>Total</Text>
+              <Text style={[styles.totalLabel, isDark && styles.textLight]}>Total due</Text>
               <Text style={[styles.totalValue, isDark && styles.textLight]}>
                 {formatUsd(pricing.total)}
               </Text>
@@ -306,14 +329,109 @@ function RowItem({
   );
 }
 
+function SummaryStat({
+  label,
+  value,
+  isDark,
+}: {
+  label: string;
+  value: string;
+  isDark: boolean;
+}) {
+  return (
+    <View style={[styles.summaryStat, isDark ? styles.summaryStatDark : styles.summaryStatLight]}>
+      <Text style={[styles.summaryStatValue, isDark && styles.textLight]}>{value}</Text>
+      <Text style={[styles.summaryStatLabel, isDark && styles.textMutedDark]}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   textLight: { color: "#F8FAFC" },
   textMutedDark: { color: "rgba(148,163,184,0.85)" },
 
   heroSummary: {
     borderRadius: 20,
-    padding: 18,
+    padding: 16,
     marginBottom: 20,
+    borderWidth: 1,
+  },
+  heroSummaryLight: {
+    borderColor: "rgba(37,99,235,0.15)",
+  },
+  heroSummaryDark: {
+    borderColor: "rgba(96,165,250,0.3)",
+  },
+  summaryTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  summaryTitleCol: { flex: 1 },
+  summaryEyebrow: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#2563EB",
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  pricePill: {
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 84,
+    alignItems: "center",
+  },
+  pricePillValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.4,
+  },
+  pricePillCurrency: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.78)",
+    marginTop: 1,
+  },
+  summaryDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(37,99,235,0.2)",
+    marginVertical: 12,
+  },
+  summaryDividerDark: {
+    backgroundColor: "rgba(147,197,253,0.3)",
+  },
+  summaryStatRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  summaryStat: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  summaryStatLight: {
+    backgroundColor: "rgba(255,255,255,0.7)",
+  },
+  summaryStatDark: {
+    backgroundColor: "rgba(15,23,42,0.28)",
+  },
+  summaryStatValue: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  summaryStatLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#64748B",
+    marginTop: 2,
+    textTransform: "uppercase",
   },
   cardLight: {
     backgroundColor: "#FFFFFF",
@@ -330,28 +448,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-  isoChip: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: "rgba(37,99,235,0.14)",
-    marginBottom: 10,
-  },
-  isoChipText: { fontSize: 11, fontWeight: "800", color: "#2563EB", letterSpacing: 0.5 },
   planTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A", letterSpacing: -0.3 },
   planMeta: { fontSize: 13, color: "#64748B", marginTop: 6, fontWeight: "600" },
-  priceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(100,116,139,0.2)",
-  },
-  priceLabel: { fontSize: 12, fontWeight: "700", color: "#64748B" },
-  priceHuge: { fontSize: 26, fontWeight: "800", color: "#0F172A", letterSpacing: -0.8 },
 
   blockLabel: {
     fontSize: 10,

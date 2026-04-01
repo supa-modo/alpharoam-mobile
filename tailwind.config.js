@@ -38,6 +38,10 @@ module.exports = {
           900: "#044124",
         },
       },
+      boxShadow: {
+        qaLight: "0px 10px 20px rgba(15, 23, 42, 0.14)",
+        qaDark: "0px 12px 24px rgba(0, 0, 0, 0.42)",
+      },
     },
   },
   plugins: [],

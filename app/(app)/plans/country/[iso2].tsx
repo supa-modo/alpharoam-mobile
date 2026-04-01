@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 
 import { Text } from "../../../../components/Text";
 import { TextInput } from "../../../../components/TextInput";
+import { AuthenticatedScreenWrapper } from "../../../../components/AuthenticatedScreenWrapper";
 import { fetchPlans } from "../../../../services/plans";
 import { usePlansStore } from "../../../../store/plansStore";
 import type { NormalizedPlan } from "../../../../types/plans";
@@ -115,7 +116,7 @@ export default function CountryPlansScreen() {
   const planDetailBullets = detailPlan ? detailLines(detailPlan.detailsText) : [];
 
   return (
-    <>
+    <AuthenticatedScreenWrapper>
       <ScrollView
         style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
         contentContainerStyle={{
@@ -347,7 +348,7 @@ export default function CountryPlansScreen() {
       </AppBottomSheet>
 
       <CheckoutFlowSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
-    </>
+    </AuthenticatedScreenWrapper>
   );
 }
 

@@ -3,6 +3,7 @@ import { Tabs } from "expo-router";
 import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -14,8 +15,6 @@ import { Text } from "../../components/Text";
 import { AuthBoundary } from "../../components/AuthBoundary";
 import React, { useEffect } from "react";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { useQueryClient } from "@tanstack/react-query";
-import { fetchPlans } from "../../services/plans";
 import * as Haptics from "expo-haptics";
 
 const TABS = [
@@ -26,9 +25,9 @@ const TABS = [
 
 const VISIBLE_TAB_NAMES = ["index", "plans", "profile"] as const;
 
-const ACTIVE_COLOR   = "#3B82F6";
-const DURATION       = 180;
-const EASING         = Easing.out(Easing.quad);
+const ACTIVE_COLOR = "#0064e6";
+const DURATION = 180;
+const EASING = Easing.out(Easing.quad);
 
 function TabItem({
   route, isFocused, onPress, onLongPress, isDark,
@@ -83,10 +82,11 @@ function TabItem({
 }
 
 function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const insets  = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
-  const isDark  = colorScheme === "dark";
-  const queryClient = useQueryClient();
+  const isDark = colorScheme === "dark";
+  // BlurView uses hardware bitmaps on Android and breaks under software rendering; iOS only.
+  const iosBlurIntensity = isDark ? 30 : 38;
 
   const activeRouteName = state.routes[state.index]?.name ?? "";
   if (!VISIBLE_TAB_NAMES.includes(activeRouteName as any)) {
@@ -101,11 +101,25 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     <View
       style={[styles.outer, { bottom: Math.max(insets.bottom, 8) + 8 }]}
       pointerEvents="box-none"
+      
     >
-      <View style={[styles.bar, isDark ? styles.barDark : styles.barLight]}>
+      <View
+        style={[
+          styles.bar,
+          isDark ? styles.barDark : styles.barLight,
+          Platform.OS === "android" && (isDark ? styles.barDarkAndroid : styles.barLightAndroid),
+        ]}
+      >
+        {Platform.OS === "ios" ? (
+          <BlurView
+            tint={isDark ? "dark" : "light"}
+            intensity={iosBlurIntensity}
+            style={StyleSheet.absoluteFillObject}
+          />
+        ) : null}
         {routesToShow.map((route) => {
           const index = state.routes.findIndex((r) => r.key === route.key);
-          const isFocused   = state.index === index;
+          const isFocused = state.index === index;
           const { options } = descriptors[route.key];
           if (options.tabBarButton === null) return null;
 
@@ -122,13 +136,6 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                   canPreventDefault: true,
                 });
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (route.name === "plans") {
-                  void queryClient.prefetchQuery({
-                    queryKey: ["alpharoam", "plans"],
-                    queryFn: fetchPlans,
-                    staleTime: 1000 * 60 * 10,
-                  });
-                }
                 if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
               }}
               onLongPress={() =>
@@ -164,24 +171,33 @@ const styles = StyleSheet.create({
     right: 16,
   },
   bar: {
+   
+    
     flexDirection: "row",
     height: 66,
     borderRadius: 26,
     overflow: "hidden",
     ...Platform.select({
-      ios:     { shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 18 },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 18 },
       android: { elevation: 16 },
     }),
   },
   barDark: {
-    backgroundColor: "rgba(8,18,32,0.97)",
+    backgroundColor: "rgba(8,18,32,0.76)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
   },
   barLight: {
-    backgroundColor: "rgba(255,255,255, 0.97)",
+    backgroundColor: "rgba(255,255,255,0.74)",
     borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.07)",
+    borderColor: "rgba(15,23,42,0.09)",
+  },
+  /** Stronger fill on Android (no BlurView) for a glass-like bar without hardware bitmaps */
+  barDarkAndroid: {
+    backgroundColor: "rgba(8,18,32,0.94)",
+  },
+  barLightAndroid: {
+    backgroundColor: "rgba(255,255,255,0.92)",
   },
 
   // Three tabs share width equally (flex: 1 each)

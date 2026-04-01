@@ -10,6 +10,7 @@ import { usePlansStore } from "../../store/plansStore";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "react-native";
+import { AuthenticatedScreenWrapper } from "../../components/AuthenticatedScreenWrapper";
 
 type MenuItem = {
   icon: React.ComponentProps<typeof Ionicons>["name"];
@@ -142,22 +143,23 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <ScrollView
-      style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
-      contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 120 }}
-      showsVerticalScrollIndicator={false}
-    >
-      <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor="transparent"
-
-      />
-      <LinearGradient
-        colors={isDark ? ["#0B1220", "#1E293B"] : ["#0F172A", "#1E293B"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
+    <AuthenticatedScreenWrapper>
+      <ScrollView
+        style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
+        contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
       >
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          backgroundColor="transparent"
+
+        />
+        <LinearGradient
+          colors={isDark ? ["#0B1220", "#1E293B"] : ["#0F172A", "#1E293B"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
         <View style={styles.heroOrbLg} />
         <View style={styles.heroOrbSm} />
         <View style={styles.heroAvatarRow}>
@@ -188,11 +190,12 @@ export default function ProfileScreen() {
       <SectionLabel title="SUPPORT AND ABOUT" isDark={isDark} />
       <MenuCard items={supportItems} isDark={isDark} />
 
-      <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-        <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-        <Text style={styles.logoutText}>Sign out</Text>
-      </Pressable>
-    </ScrollView>
+        <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={18} color="#EF4444" />
+          <Text style={styles.logoutText}>Sign out</Text>
+        </Pressable>
+      </ScrollView>
+    </AuthenticatedScreenWrapper>
   );
 }
 

@@ -15,6 +15,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 
 import { Text } from "../../../components/Text";
 import { TextInput } from "../../../components/TextInput";
+import { AuthenticatedScreenWrapper } from "../../../components/AuthenticatedScreenWrapper";
 import { fetchPlans } from "../../../services/plans";
 import { iso2ToFlagEmoji } from "../../../lib/countryFlags";
 import type { AlphaRoamCountry, NormalizedPlan } from "../../../types/plans";
@@ -91,14 +92,15 @@ export default function PlansScreen() {
   }, [countries, query]);
 
   return (
-    <ScrollView
-      style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
-      contentContainerStyle={{
-        paddingTop: insets.top + 8,
-        paddingBottom: 120,
-      }}
-      showsVerticalScrollIndicator={false}
-    >
+    <AuthenticatedScreenWrapper>
+      <ScrollView
+        style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: 120,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.kicker, isDark && styles.textMutedDark]}>DESTINATIONS</Text>
@@ -254,7 +256,8 @@ export default function PlansScreen() {
           ) : null}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </AuthenticatedScreenWrapper>
   );
 }
 

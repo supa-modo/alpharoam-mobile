@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Alert, Image, StatusBar, ActivityIndicator } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { View, ScrollView, Pressable, StyleSheet, Alert, Image, StatusBar } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 
 import { Text } from "../../components/Text";
@@ -16,6 +16,7 @@ import { getTimeGreeting } from "../../lib/greeting";
 import { fetchPlans } from "../../services/plans";
 import { QuickCountrySearch } from "../../components/QuickCountrySearch";
 import { PopularDestinations } from "../../components/PopularDestinations";
+import { AuthenticatedScreenWrapper } from "../../components/AuthenticatedScreenWrapper";
 import type { NormalizedPlan } from "../../types/plans";
 
 const QUICK_ACTIONS = [
@@ -59,19 +60,28 @@ const QUICK_ACTIONS = [
 
 const TRUST_POINTS = [
   {
-    icon: "flash-outline",
+    icon: "flash",
+    label: "Instant",
     title: "Instant activation",
-    subtitle: "Get online in minutes after checkout.",
+    subtitle: "Online in minutes after checkout — no store visit needed.",
+    color: "#F59E0B",
+    gradientColors: ["rgba(245,158,11,0.18)", "rgba(245,158,11,0.04)"],
   },
   {
-    icon: "earth-outline",
+    icon: "earth",
+    label: "Global",
     title: "190+ countries",
-    subtitle: "One app for regional and global travel.",
+    subtitle: "One app for regional and global travel. Always covered.",
+    color: "#10B981",
+    gradientColors: ["rgba(16,185,129,0.18)", "rgba(16,185,129,0.04)"],
   },
   {
-    icon: "shield-checkmark-outline",
+    icon: "shield-check",
+    label: "Honest",
     title: "No hidden fees",
-    subtitle: "Simple pricing with transparent checkout.",
+    subtitle: "Simple pricing, transparent checkout. What you see is what you pay.",
+    color: "#3B82F6",
+    gradientColors: ["rgba(59,130,246,0.18)", "rgba(59,130,246,0.04)"],
   },
 ] as const;
 
@@ -93,14 +103,12 @@ function getExpiryLabel(expiryIso: string | null) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const user = useAuthStore((state) => state.user);
   const hasActivePlan = usePlansStore((state) => state.hasActivePlan);
   const activePlan = usePlansStore((state) => state.activePlan);
   const activePlanExpiry = usePlansStore((state) => state.activePlanExpiry);
-  const [navigatingPlans, setNavigatingPlans] = useState(false);
 
   const greeting = useMemo(() => getTimeGreeting(), []);
   const firstName = user?.full_name?.split(" ")[0] ?? "DemoUser";
@@ -111,16 +119,7 @@ export default function HomeScreen() {
     staleTime: 1000 * 60 * 10,
   });
 
-  useEffect(() => {
-    void queryClient.prefetchQuery({
-      queryKey: ["alpharoam", "plans"],
-      queryFn: fetchPlans,
-      staleTime: 1000 * 60 * 10,
-    });
-  }, [queryClient]);
-
   const openPlans = useCallback((country?: { iso2: string; name: string }) => {
-    setNavigatingPlans(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (country) {
@@ -131,8 +130,6 @@ export default function HomeScreen() {
     } else {
       router.push("/(app)/plans");
     }
-
-    setTimeout(() => setNavigatingPlans(false), 900);
   }, []);
 
   const onQuickActionPress = useCallback(
@@ -152,11 +149,13 @@ export default function HomeScreen() {
   );
 
   return (
-    <>
+    <AuthenticatedScreenWrapper>
       <ScrollView
         style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
         contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         <StatusBar
           barStyle={isDark ? "light-content" : "dark-content"}
@@ -186,71 +185,145 @@ export default function HomeScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(400).delay(50)} style={styles.heroWrap}>
-          <LinearGradient
-            colors={["#1E3FAE", "#2563EB", "#3B82F6"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
-            <View style={styles.heroCircle1} />
-            <View style={styles.heroCircle2} />
-            <View style={styles.heroCircleSm} />
-
-            <View style={styles.heroTopRow}>
-              <View style={styles.brandRow}>
-                <Image
-                  source={require("../../assets/icon2dark.png")}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-              <View style={styles.heroPill}>
-                <Ionicons name="cellular-outline" size={13} color="rgba(255,255,255,0.85)" />
-                <Text style={styles.heroPillText}>eSIM ready</Text>
-              </View>
-            </View>
-
-            <Text style={styles.heroEyebrow}>Global data</Text>
-            <Text style={styles.heroHeadline}>
-              Stay connected anywhere you land
-            </Text>
-            <Text style={styles.heroSub}>
-              Activate in minutes. Keep your number. Travel like a local.
-            </Text>
-
-            <Pressable
-              style={({ pressed }) => [styles.heroCta, pressed && { transform: [{ scale: 0.98 }] }]}
-              onPress={() => openPlans()}
-              className="flex flex-row gap-2 bg-white rounded-full py-3 px-4 justify-center items-center flex-start"
+          {hasActivePlan && activePlan ? (
+            <LinearGradient
+              colors={["#1E3FAE", "#2563EB", "#3B82F6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroCard}
             >
-              <Text style={styles.heroCtaText}>Browse Our Plans</Text>
-              <Ionicons name="arrow-forward" size={15} color="#0F172A" />
-            </Pressable>
-          </LinearGradient>
+              <View style={styles.heroCircle1} />
+              <View style={styles.heroCircle2} />
+              <View style={styles.heroCircleSm} />
+
+              <View style={styles.heroTopRow}>
+                <View style={styles.brandRow}>
+                  <Image
+                    source={require("../../assets/icon2dark.png")}
+                    style={styles.logo}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.heroPill}>
+                  <Ionicons name="cellular-outline" size={13} color="rgba(255,255,255,0.85)" />
+                  <Text style={styles.heroPillText}>{hasActivePlan ? "eSIM ready" : "No active plan"}</Text>
+                </View>
+              </View>
+
+              <View style={styles.planBadge} className="bg-green-600 rounded-full -mt-2">
+                <View className="w-2 h-2 rounded-[9999px] bg-green-100" />
+                <Text className="text-green-100 text-xs font-bold">Active plan</Text>
+              </View>
+              <Text style={styles.heroHeadline}>
+                {activePlan?.name || "Stay connected anywhere you land"}
+              </Text>
+              <Text style={styles.heroSub}>
+                {activePlan?.name ? getExpiryLabel(activePlanExpiry) + " · " + formatPlanMeta(activePlan) : "Activate in minutes. Keep your number. Travel like a local."}
+              </Text>
+
+              <View style={styles.planStatsRow}>
+                <View style={[styles.planStat, isDark ? styles.planStatDark : styles.planStatLight]}>
+                  <Text style={[styles.planStatVal, isDark && styles.textLight]}>
+                    {activePlan?.dataGb !== null ? `${activePlan?.dataGb} GB` : "—"}
+                  </Text>
+                  <Text style={[styles.planStatLab, isDark && styles.textMutedDark]}>Data</Text>
+                </View>
+                <View style={[styles.planStat, isDark ? styles.planStatDark : styles.planStatLight]}>
+                  <Text style={[styles.planStatVal, isDark && styles.textLight]}>
+                    {activePlan?.validityDays !== null ? `${activePlan?.validityDays}d` : "—"}
+                  </Text>
+                  <Text style={[styles.planStatLab, isDark && styles.textMutedDark]}>Validity</Text>
+                </View>
+                <View style={[styles.planStat, isDark ? styles.planStatDark : styles.planStatLight]}>
+                  <Text style={[styles.planStatVal, isDark && styles.textLight]}>
+                    {activePlan?.priceUsd !== null ? `$${activePlan?.priceUsd}` : "—"}
+                  </Text>
+                  <Text style={[styles.planStatLab, isDark && styles.textMutedDark]}>Price</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          ) : (
+            <LinearGradient
+              colors={["#1E3FAE", "#2563EB", "#3B82F6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroCard}
+            >
+              <View style={styles.heroCircle1} />
+              <View style={styles.heroCircle2} />
+              <View style={styles.heroCircleSm} />
+
+              <View style={styles.heroTopRow}>
+                <View style={styles.brandRow}>
+                  <Image
+                    source={require("../../assets/icon2dark.png")}
+                    style={styles.logo}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.heroPill}>
+                  <Ionicons name="cellular-outline" size={13} color="rgba(255,255,255,0.85)" />
+                  <Text style={styles.heroPillText}>{hasActivePlan ? "eSIM ready" : "No active plan"}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.heroEyebrow} >Global data (190+ countries)</Text>
+              <Text style={styles.heroHeadline}>
+                Stay connected anywhere you land
+              </Text>
+              <Text style={styles.heroSub}>
+                Get connected in 190+ countries with one tap in minutes. Travel like a local.
+              </Text>
+
+              <Pressable
+                style={({ pressed }) => [styles.heroCta, pressed && { transform: [{ scale: 0.98 }] }]}
+                onPress={() => openPlans()}
+                className="flex flex-row gap-2 bg-white rounded-full py-3.5 px-4 justify-center items-center flex-start"
+              >
+                <Text style={styles.heroCtaText}>Browse Our Plans</Text>
+                <Ionicons name="arrow-forward" size={15} color="#0F172A" />
+              </Pressable>
+            </LinearGradient>
+          )}
+
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.section}>
-          <View style={styles.quickActionRow}>
+          <View style={styles.quickActionsRow}>
             {QUICK_ACTIONS.map((item) => (
-              <Pressable
+              <View
                 key={item.label}
-                onPress={() => onQuickActionPress(item.action)}
-                style={({ pressed }) => [
-                  styles.qaCard,
-                  isDark ? styles.qaCardDark : styles.qaCardLight,
-                  pressed && (isDark ? styles.qaCardDarkPressed : styles.qaCardLightPressed),
-                  pressed && { transform: [{ scale: 0.96 }] },
+                style={[
+                  styles.qaShadowWrap,
+                  isDark ? styles.qaNativeShadowDark : styles.qaNativeShadowLight,
                 ]}
               >
-                <View
-                  style={[styles.qaIconWrap, { backgroundColor: item.bg, borderColor: item.borderColor }]}
-                  className="p-4 border-2 rounded-full"
+                <Pressable
+                  onPress={() => onQuickActionPress(item.action)}
+                  className={[
+                    "flex-1 items-center justify-center rounded-3xl px-2 py-4",
+                    isDark
+                      ? "border border-white/10 bg-slate-900/85"
+                      : "border border-slate-200/70 bg-white",
+                  ].join(" ")}
+                  style={({ pressed }) => [
+                    pressed && { transform: [{ scale: 0.98 }], opacity: 0.92 },
+                  ]}
                 >
-                  <MaterialCommunityIcons name={item.icon as never} size={28} color="#fff" />
-                </View>
-                <Text style={[styles.qaLabel, isDark && styles.textLight]}>{item.label}</Text>
-                <Text style={[styles.qaSub, isDark && styles.textMutedDark]}>{item.sub}</Text>
-              </Pressable>
+                  <View
+                    style={{ backgroundColor: item.bg, borderColor: item.borderColor }}
+                    className="mb-2.5 h-14 w-14 items-center justify-center rounded-full border-2"
+                  >
+                    <MaterialCommunityIcons name={item.icon as never} size={23} color="#fff" />
+                  </View>
+                  <Text style={styles.quickActionLabel} className={isDark ? "text-center text-[11px] font-bold text-primary-500" : "text-center text-[11px] font-bold text-slate-900"}>
+                    {item.label}
+                  </Text>
+                  <Text className={isDark ? "mt-1 text-center text-[9px] font-semibold text-slate-400" : "mt-1 text-center text-[9px] font-semibold text-slate-500"}>
+                    {item.sub}
+                  </Text>
+                </Pressable>
+              </View>
             ))}
           </View>
         </Animated.View>
@@ -263,83 +336,11 @@ export default function HomeScreen() {
           />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.duration(420).delay(160)} style={[styles.section, styles.mt6]}>
-          <View style={styles.sectionHeadRow}>
-            <Text style={[styles.sectionKicker, isDark && styles.textMutedDark]}>CURRENT PLAN</Text>
-            {hasActivePlan ? (
-              <Pressable onPress={() => router.push("/(app)/profile")}>
-                <Text style={styles.sectionLink}>Manage</Text>
-              </Pressable>
-            ) : null}
-          </View>
 
-          {hasActivePlan && activePlan ? (
-            <View style={[styles.currentPlanCard, isDark ? styles.cardDark : styles.cardLight]}>
-              <View style={styles.planBadge}>
-                <View style={styles.planBadgeDot} />
-                <Text style={styles.planBadgeText}>Active plan</Text>
-              </View>
-              <Text style={[styles.planName, isDark && styles.textLight]}>{activePlan.name}</Text>
-              <Text style={[styles.planDetail, isDark && styles.textMutedDark]}>
-                {getExpiryLabel(activePlanExpiry)} · {formatPlanMeta(activePlan)}
-              </Text>
-
-              <View style={styles.planStatsRow}>
-                <View style={[styles.planStat, isDark ? styles.planStatDark : styles.planStatLight]}>
-                  <Text style={[styles.planStatVal, isDark && styles.textLight]}>
-                    {activePlan.dataGb !== null ? `${activePlan.dataGb} GB` : "—"}
-                  </Text>
-                  <Text style={[styles.planStatLab, isDark && styles.textMutedDark]}>Data</Text>
-                </View>
-                <View style={[styles.planStat, isDark ? styles.planStatDark : styles.planStatLight]}>
-                  <Text style={[styles.planStatVal, isDark && styles.textLight]}>
-                    {activePlan.validityDays !== null ? `${activePlan.validityDays}d` : "—"}
-                  </Text>
-                  <Text style={[styles.planStatLab, isDark && styles.textMutedDark]}>Validity</Text>
-                </View>
-                <View style={[styles.planStat, isDark ? styles.planStatDark : styles.planStatLight]}>
-                  <Text style={[styles.planStatVal, isDark && styles.textLight]}>
-                    {activePlan.priceUsd !== null ? `$${activePlan.priceUsd}` : "—"}
-                  </Text>
-                  <Text style={[styles.planStatLab, isDark && styles.textMutedDark]}>Price</Text>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <LinearGradient
-              colors={
-                isDark
-                  ? ["rgba(255,255,255,0.08)", "rgba(255,255,255,0.03)"]
-                  : ["#F8FAFC", "#F1F5F9"]
-              }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.noPlanCard}
-            >
-              <Ionicons
-                name="cellular-outline"
-                size={40}
-                color={isDark ? "rgba(148,163,184,0.9)" : "rgba(100,116,139,0.75)"}
-              />
-              <Text style={[styles.noPlanTitle, isDark && styles.textLight]}>No Active Plan</Text>
-              <Text style={[styles.noPlanSubtitle, isDark && styles.textMutedDark]}>
-                Get connected in 190+ countries with one tap.
-              </Text>
-              <Pressable onPress={() => openPlans()} style={styles.noPlanCta}>
-                <LinearGradient
-                  colors={["#2563EB", "#1D4ED8"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.noPlanCtaGradient}
-                >
-                  <Text style={styles.noPlanCtaText}>Browse Plans</Text>
-                </LinearGradient>
-              </Pressable>
-            </LinearGradient>
-          )}
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.duration(450).delay(190)} style={styles.section}>
+        <Animated.View
+          entering={FadeInDown.duration(450).delay(190)}
+          style={[styles.section, styles.fullBleedDestinationsSection]}
+        >
           <PopularDestinations
             plans={plans}
             isDark={isDark}
@@ -347,31 +348,63 @@ export default function HomeScreen() {
           />
         </Animated.View>
 
+
         <Animated.View entering={FadeInDown.duration(450).delay(220)} style={styles.section}>
-          <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Why AlphaRoam?</Text>
-          <View style={styles.trustList}>
-            {TRUST_POINTS.map((item) => (
-              <View key={item.title} style={[styles.trustCard, isDark ? styles.cardDark : styles.cardLight]}>
-                <View style={styles.trustIconWrap}>
-                  <Ionicons name={item.icon as never} size={18} color="#2563EB" />
+          <View style={styles.sectionHeadRow}>
+            <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Why Choose AlphaRoam?</Text>
+            <View style={[styles.whyBadge, isDark ? styles.whyBadgeDark : styles.whyBadgeLight]}>
+              <Text style={styles.whyBadgeText}>Trusted worldwide</Text>
+            </View>
+          </View>
+
+          <View style={[styles.trustCard, isDark ? styles.trustCardDark : styles.trustCardLight]}>
+            {TRUST_POINTS.map((item, index) => {
+              const isLast = index === TRUST_POINTS.length - 1;
+              return (
+                <View key={item.title}>
+                  <View style={styles.trustRow}>
+                    {/* Icon bubble */}
+                    <View style={[styles.trustIconOuter, { backgroundColor: item.gradientColors[0] }]}>
+                      <View style={[styles.trustIconInner, { backgroundColor: item.color + "22" }]}>
+                        <MaterialCommunityIcons name={item.icon as never} size={24} color={item.color} />
+                      </View>
+                    </View>
+
+                    {/* Text */}
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.trustTitleRow}>
+                        <Text style={[styles.trustTitle, isDark && styles.textLight]}>
+                          {item.title}
+                        </Text>
+                        <View style={[styles.trustLabelPill, { backgroundColor: item.color + "18" }]}>
+                          <Text style={[styles.trustLabelText, { color: item.color }]}>
+                            {item.label}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.trustSubtitle, isDark && styles.textMutedDark]}>
+                        {item.subtitle}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Divider between rows */}
+                  {!isLast && (
+                    <View
+                      style={[
+                        styles.trustDivider,
+                        isDark ? styles.trustDividerDark : styles.trustDividerLight,
+                      ]}
+                    />
+                  )}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.trustTitle, isDark && styles.textLight]}>{item.title}</Text>
-                  <Text style={[styles.trustSubtitle, isDark && styles.textMutedDark]}>{item.subtitle}</Text>
-                </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </Animated.View>
       </ScrollView>
 
-      {navigatingPlans ? (
-        <View style={styles.navLoadingPill}>
-          <ActivityIndicator size="small" color="#fff" />
-          <Text style={styles.navLoadingText}>Opening plans...</Text>
-        </View>
-      ) : null}
-    </>
+    </AuthenticatedScreenWrapper>
   );
 }
 
@@ -511,13 +544,13 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     letterSpacing: -0.35,
     lineHeight: 28,
-    marginBottom: 8,
+    marginBottom: 3,
   },
   heroSub: {
     fontSize: 12,
     color: "rgba(255,255,255,0.78)",
     lineHeight: 19,
-    marginBottom: 18,
+    marginBottom: 12,
     maxWidth: 320,
   },
   heroCta: {
@@ -530,16 +563,17 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 999,
   },
-  heroCtaText: { color: "#0F172A", fontSize: 12, fontWeight: "800" },
+  heroCtaText: { color: "#0F172A", fontSize: 12.5, fontWeight: "800" },
 
   section: { paddingHorizontal: 22, marginBottom: 22 },
+  fullBleedDestinationsSection: { paddingHorizontal: 0 },
   mt6: { marginTop: 6 },
   sectionKicker: {
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 1.1,
     color: "#64748B",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionHeadRow: {
     flexDirection: "row",
@@ -550,61 +584,31 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15, fontWeight: "800", color: "#0F172A", letterSpacing: -0.2 },
   sectionLink: { fontSize: 11, fontWeight: "800", color: "#2563EB" },
 
-  quickActionRow: {
+  quickActionsRow: {
+    marginTop: 4,
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 8,
-    marginTop: 4,
+    flexWrap: "nowrap",
   },
-  qaCard: {
-    flex: 1,
+  qaShadowWrap: {
+    width: "23.5%",
+    minWidth: 76,
     borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 8,
   },
-
-  qaIconWrap: {
-    width: 60,
-    height: 60,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  qaLabel: { fontSize: 11, fontWeight: "800", color: "#0F172A", textAlign: "center" },
-  qaSub: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: "#64748B",
-    textAlign: "center",
-    marginTop: 3,
-  },
-  qaCardLight: {
-    backgroundColor: "#FFFFFF",
+  qaNativeShadowLight: {
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 9,
+    shadowOpacity: 0.14,
+    shadowRadius: 15,
+    elevation: 8,
   },
-  qaCardDark: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+  qaNativeShadowDark: {
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-    elevation: 11,
-  },
-  qaCardLightPressed: {
-    shadowOpacity: 0.09,
-    elevation: 6,
-  },
-  qaCardDarkPressed: {
-    shadowOpacity: 0.32,
-    elevation: 8,
+    shadowOpacity: 0.42,
+    shadowRadius: 18,
+    elevation: 10,
   },
 
   currentPlanCard: {
@@ -616,19 +620,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(22,163,74,0.12)",
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   planBadgeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#16A34A",
   },
-  planBadgeText: { fontSize: 10, fontWeight: "800", color: "#16A34A" },
+
+  quickActionLabel: {
+    fontWeight: "800",
+  },
+
   planName: { fontSize: 17, fontWeight: "800", color: "#0F172A", letterSpacing: -0.3 },
   planDetail: { fontSize: 12, fontWeight: "500", color: "#64748B", marginTop: 4, marginBottom: 12 },
   planStatsRow: { flexDirection: "row", gap: 8 },
@@ -674,14 +679,7 @@ const styles = StyleSheet.create({
   noPlanCtaText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
 
   trustList: { marginTop: 12, gap: 10 },
-  trustCard: {
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+
   trustIconWrap: {
     width: 34,
     height: 34,
@@ -690,8 +688,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(37,99,235,0.15)",
   },
-  trustTitle: { color: "#0F172A", fontSize: 13, fontWeight: "800" },
-  trustSubtitle: { marginTop: 2, color: "#64748B", fontSize: 12, fontWeight: "500" },
 
   cardLight: {
     backgroundColor: "#FFFFFF",
@@ -706,21 +702,101 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
-  navLoadingPill: {
-    position: "absolute",
-    bottom: 104,
-    alignSelf: "center",
+  whyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  whyBadgeLight: {
+    backgroundColor: "rgba(37,99,235,0.1)",
+  },
+  whyBadgeDark: {
+    backgroundColor: "rgba(59,130,246,0.15)",
+  },
+  whyBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#2563EB",
+    letterSpacing: 0.3,
+  },
+  trustCard: {
+    marginTop: 12,
+    borderRadius: 22,
+    overflow: "hidden",
+  },
+  trustCardLight: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.09,
+    shadowRadius: 18,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.05)",
+  },
+  trustCardDark: {
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  trustRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  trustIconOuter: {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trustIconInner: {
+    width: 45,
+    height: 45,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trustTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    marginBottom: 3,
   },
-  navLoadingText: {
-    color: "#fff",
+  trustTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.1,
+  },
+  trustLabelPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  trustLabelText: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  trustSubtitle: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "500",
+    color: "#64748B",
+    lineHeight: 18,
+  },
+  trustDivider: {
+    marginHorizontal: 16,
+    height: StyleSheet.hairlineWidth,
+  },
+  trustDividerLight: {
+    backgroundColor: "rgba(15,23,42,0.07)",
+  },
+  trustDividerDark: {
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
 });

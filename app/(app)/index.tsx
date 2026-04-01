@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Alert, Image, StatusBar } from "react-native";
+import { View, ScrollView, Pressable, StyleSheet, Alert, Image, StatusBar, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -156,6 +156,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
       >
         <StatusBar
           barStyle={isDark ? "light-content" : "dark-content"}
@@ -288,7 +289,7 @@ export default function HomeScreen() {
 
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.section}>
+        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={[styles.section, styles.quickActionsSection]}>
           <View style={styles.quickActionsRow}>
             {QUICK_ACTIONS.map((item) => (
               <View
@@ -301,12 +302,13 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => onQuickActionPress(item.action)}
                   className={[
-                    "flex-1 items-center justify-center rounded-3xl px-2 py-4",
+                    "items-center justify-center rounded-3xl px-2 py-4",
                     isDark
                       ? "border border-white/10 bg-slate-900/85"
                       : "border border-slate-200/70 bg-white",
                   ].join(" ")}
                   style={({ pressed }) => [
+                    styles.qaPressableInner,
                     pressed && { transform: [{ scale: 0.98 }], opacity: 0.92 },
                   ]}
                 >
@@ -584,17 +586,31 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15, fontWeight: "800", color: "#0F172A", letterSpacing: -0.2 },
   sectionLink: { fontSize: 11, fontWeight: "800", color: "#2563EB" },
 
+  /** Keeps quick actions from vertically/horizontally collapsing when keyboard + search expand */
+  quickActionsSection: {
+    flexShrink: 0,
+  },
   quickActionsRow: {
     marginTop: 4,
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "stretch",
     gap: 8,
     flexWrap: "nowrap",
+    width: "100%",
+    flexShrink: 0,
   },
   qaShadowWrap: {
-    width: "23.5%",
-    minWidth: 76,
+    flex: 1,
+    flexGrow: 1,
+    flexShrink: 0,
+    minWidth: 72,
     borderRadius: 24,
+  },
+  qaPressableInner: {
+    width: "100%",
+    minHeight: 132,
+    alignSelf: "stretch",
   },
   qaNativeShadowLight: {
     shadowColor: "#0F172A",

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Keyboard, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -20,23 +20,24 @@ type QuickCountrySearchProps = {
   onSelectCountry: (iso2: string, name: string) => void;
 };
 
-const DROPDOWN_OFFSET_Y = Platform.select({
-  ios: 10,
-  android: 6,
-  default: 8,
-});
+const BLUR_DELAY_MS = 160;
 
 export function QuickCountrySearch({ plans, isDark, onSelectCountry }: QuickCountrySearchProps) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
-  const [anchor, setAnchor] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const searchWrapRef = useRef<View>(null);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isOpen = focused || query.trim().length > 0;
   const progress = useSharedValue(0);
 
   useEffect(() => {
     progress.value = withTiming(isOpen ? 1 : 0, { duration: 180 });
   }, [isOpen, progress]);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    };
+  }, []);
 
   const countries = useMemo<CountryEntry[]>(() => {
     const map = new Map<string, { name: string; planIds: Set<number> }>();
@@ -66,45 +67,52 @@ export function QuickCountrySearch({ plans, isDark, onSelectCountry }: QuickCoun
 
   const filtered = useMemo<CountryEntry[]>(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return countries.slice(0, 6);
-    return countries
-      .filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.iso2.toLowerCase().includes(q)
-      )
-      .slice(0, 6);
+    if (!q) return countries;
+    return countries.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.iso2.toLowerCase().includes(q)
+    );
   }, [countries, query]);
-
-  const refreshAnchor = useCallback(() => {
-    if (!searchWrapRef.current) return;
-    searchWrapRef.current.measureInWindow((x, y, width, height) => {
-      setAnchor({ x, y, width, height });
-    });
-  }, []);
 
   const dropdownStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * -6 }],
+    transform: [{ translateY: (1 - progress.value) * -4 }],
   }));
+
+  const clearBlurTimer = useCallback(() => {
+    if (blurTimerRef.current) {
+      clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleBlur = useCallback(() => {
+    clearBlurTimer();
+    blurTimerRef.current = setTimeout(() => {
+      setFocused(false);
+      blurTimerRef.current = null;
+    }, BLUR_DELAY_MS);
+  }, [clearBlurTimer]);
 
   const handleSelect = useCallback(
     (iso2: string, name: string) => {
+      clearBlurTimer();
       Keyboard.dismiss();
       setFocused(false);
       setQuery("");
       onSelectCountry(iso2, name);
     },
-    [onSelectCountry]
+    [clearBlurTimer, onSelectCountry]
   );
 
   const handleClear = useCallback(() => {
     setQuery("");
   }, []);
+
   const closeDropdown = useCallback(() => {
+    clearBlurTimer();
     Keyboard.dismiss();
     setFocused(false);
-  }, []);
+  }, [clearBlurTimer]);
 
   return (
     <View style={styles.container}>
@@ -113,8 +121,7 @@ export function QuickCountrySearch({ plans, isDark, onSelectCountry }: QuickCoun
       </Text>
 
       <View
-        ref={searchWrapRef}
-        onLayout={refreshAnchor}
+        className="border-gray-400"
         style={[
           styles.searchWrap,
           isDark ? styles.searchDark : styles.searchLight,
@@ -136,10 +143,10 @@ export function QuickCountrySearch({ plans, isDark, onSelectCountry }: QuickCoun
           value={query}
           onChangeText={setQuery}
           onFocus={() => {
+            clearBlurTimer();
             setFocused(true);
-            refreshAnchor();
           }}
-          onBlur={() => setFocused(false)}
+          onBlur={scheduleBlur}
           placeholder="Search 190+ countries"
           placeholderTextColor={
             isDark ? "rgba(148,163,184,0.5)" : "rgba(100,116,139,0.55)"
@@ -162,41 +169,38 @@ export function QuickCountrySearch({ plans, isDark, onSelectCountry }: QuickCoun
         ) : null}
       </View>
 
-      <Modal transparent visible={isOpen} onRequestClose={closeDropdown} animationType="none">
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={closeDropdown} />
-          <Animated.View
-            style={[
-              styles.dropdown,
-              isDark ? styles.dropdownDark : styles.dropdownLight,
-              {
-                top: anchor.y + anchor.height + DROPDOWN_OFFSET_Y,
-                left: anchor.x,
-                width: anchor.width,
-              },
-              dropdownStyle,
-            ]}
+      {isOpen ? (
+        <Animated.View
+          style={[
+            styles.dropdown,
+            isDark ? styles.dropdownDark : styles.dropdownLight,
+            dropdownStyle,
+          ]}
+        >
+          <View style={[styles.dropdownHeader, isDark ? styles.dividerDark : styles.dividerLight]}>
+            <Text style={[styles.dropdownTitle, isDark && styles.textLight]}>Select Your Country</Text>
+            <Pressable onPress={closeDropdown} hitSlop={10} style={styles.closeBtn}>
+              <Ionicons name="close" size={16} color={isDark ? "#cbd5e1" : "#334155"} />
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.dropdownList}
+            contentContainerStyle={styles.dropdownListContent}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.dropdownHeader, isDark ? styles.dividerDark : styles.dividerLight]}>
-              <Text style={[styles.dropdownTitle, isDark && styles.textLight]}>Popular countries</Text>
-              <Pressable onPress={closeDropdown} hitSlop={10} style={styles.closeBtn}>
-                <Ionicons name="close" size={16} color={isDark ? "#cbd5e1" : "#334155"} />
-              </Pressable>
-            </View>
-            <ScrollView style={styles.dropdownList} keyboardShouldPersistTaps="handled">
-              {filtered.length > 0 ? (
-                filtered.map((country, index) => {
-                  const flag = iso2ToFlagEmoji(country.iso2) ?? country.iso2;
-                  const isLast = index === filtered.length - 1;
-                  return (
+            {filtered.length > 0 ? (
+              filtered.map((country, index) => {
+                const flag = iso2ToFlagEmoji(country.iso2) ?? country.iso2;
+
+                return (
+                  <View key={`${country.iso2}-${index}`}>
                     <Pressable
-                      key={country.iso2}
+                      onPressIn={() => clearBlurTimer()}
                       onPress={() => handleSelect(country.iso2, country.name)}
-                      style={({ pressed }) => [
-                        styles.itemRow,
-                        !isLast && (isDark ? styles.dividerDark : styles.dividerLight),
-                        pressed && styles.itemPressed,
-                      ]}
+                      className="flex-row items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-800 last:border-b-0"
+                      style={({ pressed }) => [pressed && styles.itemPressed]}
                     >
                       <Text style={styles.itemFlag}>{flag}</Text>
                       <View style={{ flex: 1 }}>
@@ -211,22 +215,25 @@ export function QuickCountrySearch({ plans, isDark, onSelectCountry }: QuickCoun
                         color={isDark ? "rgba(148,163,184,0.9)" : "rgba(100,116,139,0.9)"}
                       />
                     </Pressable>
-                  );
-                })
-              ) : (
-                <View style={styles.emptyRow}>
-                  <Ionicons
-                    name="earth-outline"
-                    size={22}
-                    color={isDark ? "rgba(148,163,184,0.4)" : "rgba(100,116,139,0.4)"}
-                  />
-                  <Text style={[styles.emptyText, isDark && styles.textMuted]}>No countries found</Text>
-                </View>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-      </Modal>
+                    {index !== filtered.length - 1 ? (
+                      <View style={isDark ? styles.dividerDark2 : styles.dividerLight2} />
+                    ) : null}
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.emptyRow}>
+                <Ionicons
+                  name="earth-outline"
+                  size={22}
+                  color={isDark ? "rgba(148,163,184,0.4)" : "rgba(100,116,139,0.4)"}
+                />
+                <Text style={[styles.emptyText, isDark && styles.textMuted]}>No countries found</Text>
+              </View>
+            )}
+          </ScrollView>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -242,7 +249,7 @@ const styles = StyleSheet.create({
   },
 
   searchWrap: {
-    height: 52,
+    height: 50,
     borderRadius: 16,
     paddingHorizontal: 14,
     alignItems: "center",
@@ -251,8 +258,8 @@ const styles = StyleSheet.create({
   },
   searchLight: {
     backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#9ca3af",
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -261,7 +268,7 @@ const styles = StyleSheet.create({
   },
   searchDark: {
     backgroundColor: "rgba(255,255,255,0.065)",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "rgba(255,255,255,0.09)",
   },
   searchFocusedLight: {
@@ -275,7 +282,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    height: 50,
+    height: 45,
     fontSize: 14,
     fontWeight: "600",
     color: "#0F172A",
@@ -298,34 +305,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  modalRoot: { ...StyleSheet.absoluteFillObject },
-  backdrop: { ...StyleSheet.absoluteFillObject },
+  /** In-flow panel: pushes content below (e.g. Popular destinations) */
   dropdown: {
-    position: "absolute",
+    marginTop: 8,
     borderRadius: 16,
     overflow: "hidden",
     maxHeight: 300,
-    zIndex: 9999,
   },
   dropdownLight: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.07)",
     shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.13,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 6,
   },
   dropdownDark: {
     backgroundColor: "rgba(15,23,42,0.97)",
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.18)",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.4,
-    shadowRadius: 22,
-    elevation: 14,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
   },
   dropdownHeader: {
     height: 44,
@@ -347,6 +352,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dropdownList: { maxHeight: 256 },
+  dropdownListContent: { flexGrow: 1 },
 
   itemRow: {
     flexDirection: "row",
@@ -360,9 +366,19 @@ const styles = StyleSheet.create({
   },
   dividerLight: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(15,23,42,0.08)",
+    borderBottomColor: "rgba(15,23,42,0.18)",
   },
   dividerDark: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.15)",
+  },
+  dividerLight2: {
+    marginHorizontal: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(15,23,42,0.12)",
+  },
+  dividerDark2: {
+    marginHorizontal: 18,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.15)",
   },

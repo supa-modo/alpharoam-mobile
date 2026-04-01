@@ -47,7 +47,7 @@ function TabItem({
     opacity: progress.value * (isDark ? 0.18 : 0.1),
   }));
 
-  const inactiveColor = isDark ? "rgba(100,116,139,0.65)" : "rgba(100,116,139,0.7)";
+  const inactiveColor = isDark ? "rgba(100,116,139,0.75)" : "rgba(100,116,139,0.9)";
 
   return (
     <Pressable
@@ -101,7 +101,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     <View
       style={[styles.outer, { bottom: Math.max(insets.bottom, 8) + 8 }]}
       pointerEvents="box-none"
-      
+
     >
       <View
         style={[
@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
     right: 16,
   },
   bar: {
-   
-    
+
+
     flexDirection: "row",
     height: 66,
     borderRadius: 26,
@@ -183,21 +183,21 @@ const styles = StyleSheet.create({
     }),
   },
   barDark: {
-    backgroundColor: "rgba(8,18,32,0.76)",
+    backgroundColor: "rgba(8,18,32,0.86)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
   },
   barLight: {
-    backgroundColor: "rgba(255,255,255,0.74)",
+    backgroundColor: "rgba(255,255,255,0.95)",
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.09)",
   },
   /** Stronger fill on Android (no BlurView) for a glass-like bar without hardware bitmaps */
   barDarkAndroid: {
-    backgroundColor: "rgba(8,18,32,0.94)",
+    backgroundColor: "rgba(8,18,32,0.96)",
   },
   barLightAndroid: {
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: "rgba(255,255,255,0.97)",
   },
 
   // Three tabs share width equally (flex: 1 each)

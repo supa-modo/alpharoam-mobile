@@ -20,7 +20,8 @@
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "favicon": "./assets/icon.png"

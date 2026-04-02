@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { Text } from "../Text";
@@ -183,7 +183,7 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Ionicons name="lock-closed" size={14} color="#fff" />
+                <MaterialCommunityIcons name="shield-lock-outline" size={20} color="#fff" />
                 <Text style={styles.payBtnText}>Pay {formatUsd(pricing.total)}</Text>
               </>
             )}
@@ -225,9 +225,7 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
             style={styles.heroCard}
           >
             <View style={styles.heroOrbLg} pointerEvents="none" />
-            <View style={styles.heroOrbSm} pointerEvents="none" />
 
-            <Text style={styles.heroEyebrow}>YOUR PLAN</Text>
             <Text style={styles.heroName} numberOfLines={2}>
               {selected.plan.name}
             </Text>
@@ -256,16 +254,7 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
           <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>ORDER SUMMARY</Text>
           <View style={[styles.summaryCard, isDark ? styles.summaryCardDark : styles.summaryCardLight]}>
             <SummaryRow label="Plan" value={selected.plan.name} isDark={isDark} />
-            <SummaryRow
-              label="Data"
-              value={selected.plan.dataGb !== null ? `${selected.plan.dataGb} GB` : "Unlimited"}
-              isDark={isDark}
-            />
-            <SummaryRow
-              label="Validity"
-              value={selected.plan.validityDays !== null ? `${selected.plan.validityDays} days` : "30 days"}
-              isDark={isDark}
-            />
+
             <SummaryRow label="Tax" value="$0.00" isDark={isDark} />
             <View style={[styles.totalRow, isDark ? styles.totalRowDark : styles.totalRowLight]}>
               <Text style={[styles.totalLabel, isDark && styles.textLight]}>Total due</Text>
@@ -274,8 +263,9 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
           </View>
 
           <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>PAYMENT METHOD</Text>
-          <View style={[styles.tabBar, isDark ? styles.tabBarDark : styles.tabBarLight]}>
+          <View className="flex flex-row gap-2 py-2 px-4 rounded-2xl" style={[styles.tabBar, isDark ? styles.tabBarDark : styles.tabBarLight]}>
             <Pressable
+              className="py-3 px-4"
               onPress={() => {
                 void Haptics.selectionAsync();
                 setMethod("mpesa");
@@ -296,6 +286,7 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
               </Text>
             </Pressable>
             <Pressable
+              className="py-3 px-4"
               onPress={() => {
                 void Haptics.selectionAsync();
                 setMethod("card");
@@ -316,6 +307,7 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
               </Text>
             </Pressable>
             <Pressable
+              className="py-3 px-4"
               onPress={() => {
                 void Haptics.selectionAsync();
                 setMethod("wallet");
@@ -350,7 +342,7 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
                 autoCorrect={false}
               />
               <Text style={[styles.fieldHint, isDark && styles.fieldHintDark]}>
-                Safaricom number registered for M-Pesa
+                Your safaricom number registered for M-Pesa
               </Text>
             </View>
           ) : method === "card" ? (
@@ -518,24 +510,12 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
                 end={{ x: 1, y: 0 }}
                 style={styles.btnHomeInner}
               >
-                <Text style={styles.btnHomeText}>Back to home</Text>
+
                 <Ionicons name="home-outline" size={18} color="#fff" />
+                <Text style={styles.btnHomeText}>Back to home</Text>
               </LinearGradient>
             </Pressable>
 
-            <Pressable
-              onPress={() => {
-                onClose();
-                router.replace("/(app)/profile");
-              }}
-              style={({ pressed }) => [
-                styles.btnProfile,
-                isDark ? styles.btnProfileDark : styles.btnProfileLight,
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <Text style={[styles.btnProfileText, isDark && styles.textLight]}>View profile</Text>
-            </Pressable>
 
             <Pressable
               onPress={() => {
@@ -568,7 +548,7 @@ const styles = StyleSheet.create({
   textMuted: { color: "rgba(148,163,184,0.85)" },
 
   heroCard: {
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 16,
     marginBottom: 16,
     position: "relative",
@@ -583,15 +563,7 @@ const styles = StyleSheet.create({
     right: -20,
     backgroundColor: "rgba(255,255,255,0.07)",
   },
-  heroOrbSm: {
-    position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    right: 20,
-    bottom: -30,
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
+
   heroEyebrow: {
     fontSize: 10,
     fontWeight: "500",
@@ -618,7 +590,7 @@ const styles = StyleSheet.create({
   statChip: {
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 7,
     paddingHorizontal: 10,
     alignItems: "center",
@@ -777,6 +749,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: "#64748B",
     textTransform: "uppercase",
+    paddingLeft: 8,
   },
   fieldLabelDark: {
     color: "rgba(148,163,184,0.75)",
@@ -791,12 +764,12 @@ const styles = StyleSheet.create({
   },
   inputLight: {
     backgroundColor: "rgba(15,23,42,0.02)",
-    borderColor: "rgba(15,23,42,0.08)",
+    borderColor: "rgba(15,23,42,0.2)",
     color: "#0F172A",
   },
   inputDark: {
     backgroundColor: "rgba(255,255,255,0.04)",
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.2)",
     color: "#F8FAFC",
   },
   inputGroup: {
@@ -806,7 +779,8 @@ const styles = StyleSheet.create({
   fieldHint: {
     fontSize: 11,
     color: "#94A3B8",
-    marginTop: 2,
+    marginTop: 1,
+    paddingLeft: 4,
   },
   fieldHintDark: {
     color: "rgba(148,163,184,0.65)",
@@ -911,14 +885,15 @@ const styles = StyleSheet.create({
   payBtn: { borderRadius: 14, overflow: "hidden" },
   payBtnDisabled: { opacity: 0.85 },
   payGradient: {
+    borderRadius: 999,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 16,
-    height: 52,
+    paddingVertical: 12,
+    height: 49,
   },
-  payBtnText: { color: "#fff", fontWeight: "500", fontSize: 16 },
+  payBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   changePlan: { textAlign: "center", fontSize: 12, fontWeight: "500", color: "#2563EB", paddingVertical: 6 },
 
   successBody: {
@@ -985,46 +960,27 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 14,
     overflow: "hidden",
+    marginBottom: 4,
   },
   btnHomeInner: {
+    borderRadius: 999,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 14,
-    height: 50,
+    paddingVertical: 12,
+    height: 48,
   },
   btnHomeText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "500",
   },
-  btnProfile: {
-    width: "100%",
-    borderRadius: 14,
-    paddingVertical: 14,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 0.5,
-  },
-  btnProfileLight: {
-    backgroundColor: "rgba(15,23,42,0.02)",
-    borderColor: "rgba(15,23,42,0.08)",
-  },
-  btnProfileDark: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  btnProfileText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#0F172A",
-  },
+
   btnLink: {
     fontSize: 13,
     color: "#2563EB",
-    fontWeight: "500",
+    fontWeight: "600",
     paddingVertical: 6,
     textAlign: "center",
   },

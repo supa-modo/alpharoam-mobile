@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   KeyboardAvoidingView,
+  StatusBar,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -27,7 +28,12 @@ const { height: SCREEN_H } = Dimensions.get("window");
 export type AppBottomSheetProps = {
   visible: boolean;
   onClose: () => void;
-  heightRatio: number;
+  /** Used when `fitContent` is false. */
+  heightRatio?: number;
+  /** Size sheet from scroll content height, clamped between `minHeightRatio` and `maxHeightRatio`. */
+  fitContent?: boolean;
+  minHeightRatio?: number;
+  maxHeightRatio?: number;
   title: string;
   subtitle?: string;
   accentColor?: string;
@@ -40,10 +46,17 @@ export type AppBottomSheetProps = {
   dismissible?: boolean;
 };
 
+const TOP_CHROME = 132;
+const FOOTER_CHROME = 96;
+const FOOTER_CHROME_COLLAPSED = 28;
+
 export function AppBottomSheet({
   visible,
   onClose,
-  heightRatio,
+  heightRatio = 0.88,
+  fitContent = false,
+  minHeightRatio = 0.6,
+  maxHeightRatio = 0.95,
   title,
   subtitle,
   accentColor = "#3B82F6",
@@ -58,29 +71,55 @@ export function AppBottomSheet({
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const sheetHeight = Math.min(SCREEN_H * heightRatio, SCREEN_H * 0.95);
-  const translateY = useSharedValue(sheetHeight);
+  const [scrollContentH, setScrollContentH] = useState(0);
+  const prevVisible = useRef(false);
+
+  useEffect(() => {
+    if (!visible) setScrollContentH(0);
+  }, [visible]);
+
+  const sheetHeight = useMemo(() => {
+    const maxH = SCREEN_H * maxHeightRatio;
+    if (fitContent) {
+      const minH = SCREEN_H * minHeightRatio;
+      const foot = footer ? FOOTER_CHROME : FOOTER_CHROME_COLLAPSED;
+      const inner = TOP_CHROME + foot + scrollContentH + Math.min(insets.bottom, 20);
+      return Math.min(maxH, Math.max(minH, inner));
+    }
+    return Math.min(SCREEN_H * heightRatio, maxH);
+  }, [
+    fitContent,
+    heightRatio,
+    minHeightRatio,
+    maxHeightRatio,
+    scrollContentH,
+    footer,
+    insets.bottom,
+  ]);
+
+  const translateY = useSharedValue(SCREEN_H);
   const backdropOpacity = useSharedValue(0);
 
   const gradientColors: [string, string] = accentColors ?? [accentColor, accentColor];
 
   useEffect(() => {
-    if (visible) {
+    if (visible && !prevVisible.current) {
       backdropOpacity.value = withTiming(1, { duration: 280 });
+      translateY.value = sheetHeight;
       translateY.value = withSpring(0, {
         damping: 26,
         stiffness: 260,
         mass: 0.9,
       });
-    } else {
+    } else if (!visible && prevVisible.current) {
       backdropOpacity.value = withTiming(0, { duration: 220 });
       translateY.value = withTiming(sheetHeight, { duration: 300 });
     }
+    prevVisible.current = visible;
   }, [visible, sheetHeight]);
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
-    height: sheetHeight,
   }));
 
   const backdropStyle = useAnimatedStyle(() => ({
@@ -93,6 +132,7 @@ export function AppBottomSheet({
 
   return (
     <Modal transparent animationType="none" visible={visible} onRequestClose={dismissible ? onClose : undefined}>
+      <StatusBar barStyle="light-content" backgroundColor="rgba(2,11,24,0.96)" />
       <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
         <Pressable
           style={StyleSheet.absoluteFill}
@@ -109,6 +149,7 @@ export function AppBottomSheet({
           style={[
             styles.sheet,
             isDark ? styles.sheetDark : styles.sheetLight,
+            { height: sheetHeight },
             sheetStyle,
           ]}
         >
@@ -161,6 +202,13 @@ export function AppBottomSheet({
                 { paddingBottom: footer ? 8 : insets.bottom + 20 },
               ]}
               keyboardShouldPersistTaps="handled"
+              onContentSizeChange={
+                fitContent
+                  ? (_, h) => {
+                      setScrollContentH(h);
+                    }
+                  : undefined
+              }
             >
               {children}
             </ScrollView>
@@ -251,13 +299,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sheetTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "800",
     color: "#0F172A",
     letterSpacing: -0.4,
   },
   sheetSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#64748B",
     fontWeight: "500",
     marginTop: 2,

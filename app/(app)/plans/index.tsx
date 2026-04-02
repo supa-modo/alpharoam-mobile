@@ -15,8 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { Text } from "../../../components/Text";
-import { TextInput } from "../../../components/TextInput";
 import { AuthenticatedScreenWrapper } from "../../../components/AuthenticatedScreenWrapper";
+import { PlansSearchField } from "../../../components/PlansSearchField";
 import { fetchPlans } from "../../../services/plans";
 import { iso2ToFlagEmoji } from "../../../lib/countryFlags";
 import type { AlphaRoamCountry, NormalizedPlan } from "../../../types/plans";
@@ -56,7 +56,6 @@ export default function PlansScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const [query, setQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
   const [region, setRegion] = useState<string>("All regions");
 
   const {
@@ -124,50 +123,11 @@ export default function PlansScreen() {
           </Pressable>
         </View>
 
-        <View
-          style={[
-            styles.searchFieldWrap,
-            isDark ? styles.searchFieldDark : styles.searchFieldLight,
-            searchFocused && (isDark ? styles.searchFieldFocusedDark : styles.searchFieldFocusedLight),
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={18}
-            color={
-              searchFocused
-                ? "#2563EB"
-                : isDark
-                  ? "rgba(148,163,184,0.75)"
-                  : "rgba(100,116,139,0.7)"
-            }
-          />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            placeholder="Search 190+ countries"
-            placeholderTextColor={
-              isDark ? "rgba(148,163,184,0.5)" : "rgba(100,116,139,0.55)"
-            }
-            style={[styles.searchFieldInput, isDark && styles.textLight]}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {query.length > 0 ? (
-            <Pressable onPress={() => setQuery("")} hitSlop={12} style={styles.searchClearBtn}>
-              <View style={isDark ? styles.searchClearInnerDark : styles.searchClearInnerLight}>
-                <Ionicons
-                  name="close"
-                  size={12}
-                  color={isDark ? "rgba(148,163,184,0.95)" : "rgba(71,85,105,0.9)"}
-                />
-              </View>
-            </Pressable>
-          ) : null}
-        </View>
+        <PlansSearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search 190+ countries"
+        />
 
         <ScrollView
           horizontal
@@ -203,15 +163,14 @@ export default function PlansScreen() {
 
         {isLoading && !plans ? (
           <Animated.View entering={FadeIn.duration(180)} style={styles.listWrap}>
-            {Array.from({ length: 6 }).map((_, idx) => (
+            {Array.from({ length: 7 }).map((_, idx) => (
               <View
                 key={`skeleton-${idx}`}
-                className="border border-gray-300"
+                className="flex flex-row items-center gap-3 py-4 px-4 rounded-2xl  border border-gray-300 dark:border-gray-700"
                 style={[
-                  styles.row,
                   styles.skeletonRow,
                   isDark ? styles.skeletonRowDark : styles.skeletonRowLight,
-                  idx < 5 && styles.rowSpacing,
+                  idx < 6 && styles.rowSpacing,
                 ]}
               >
                 <View style={[styles.skeletonFlag, isDark && styles.skeletonMutedDark]} />
@@ -222,9 +181,7 @@ export default function PlansScreen() {
                 <ActivityIndicator size="small" color={isDark ? "#93C5FD" : "#2563EB"} />
               </View>
             ))}
-            <Text style={[styles.loadingText, isDark && styles.textMutedDark]}>
-              Loading available destinations...
-            </Text>
+
           </Animated.View>
         ) : error ? (
           <View style={styles.center}>
@@ -242,7 +199,7 @@ export default function PlansScreen() {
             </Pressable>
           </View>
         ) : (
-          <View className="flex flex-col gap-3" style={styles.listWrap}>
+          <View className="flex flex-col gap-3 px-4" >
             {filtered.map((country, index) => {
               const flagEmoji = iso2ToFlagEmoji(country.iso2);
               const isLast = index === filtered.length - 1;
@@ -255,9 +212,9 @@ export default function PlansScreen() {
                       params: { iso2: country.iso2, name: country.name },
                     })
                   }
-                  className="border border-gray-300"
+                  className="flex flex-row items-center gap-3 py-4 px-4 rounded-2xl  border border-gray-300 dark:border-gray-700"
                   style={({ pressed }) => [
-                    styles.row,
+
                     isDark ? styles.cardDark : styles.cardLight,
                     !isLast && styles.rowSpacing,
                     pressed && (isDark ? styles.rowPressedDark : styles.rowPressedLight),
@@ -335,66 +292,6 @@ const styles = StyleSheet.create({
   iconBtnLight: { backgroundColor: "rgba(37,99,235,0.10)" },
   iconBtnDark: { backgroundColor: "rgba(147,197,253,0.12)" },
 
-  /** Matches QuickCountrySearch search field for design consistency */
-  searchFieldWrap: {
-    marginHorizontal: 22,
-    marginBottom: 16,
-    height: 48,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  searchFieldLight: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#9ca3af",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  searchFieldDark: {
-    backgroundColor: "rgba(255,255,255,0.065)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.09)",
-  },
-  searchFieldFocusedLight: {
-    borderColor: "#2563EB",
-    shadowColor: "#2563EB",
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-  },
-  searchFieldFocusedDark: {
-    borderColor: "rgba(59,130,246,0.55)",
-  },
-  searchFieldInput: {
-    flex: 1,
-    height: 43,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#0F172A",
-  },
-  searchClearBtn: { padding: 2 },
-  searchClearInnerLight: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(15,23,42,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchClearInnerDark: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(148,163,184,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   regionRow: {
     paddingHorizontal: 22,
     paddingBottom: 12,
@@ -434,14 +331,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     flexDirection: "column",
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
+
   rowSpacing: { marginBottom: 12 },
   rowPressedLight: {
     backgroundColor: "#EEF2FF",

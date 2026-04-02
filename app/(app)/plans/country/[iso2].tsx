@@ -15,8 +15,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 import { Text } from "../../../../components/Text";
-import { TextInput } from "../../../../components/TextInput";
 import { AuthenticatedScreenWrapper } from "../../../../components/AuthenticatedScreenWrapper";
+import { PlansSearchField } from "../../../../components/PlansSearchField";
 import { fetchPlans } from "../../../../services/plans";
 import { usePlansStore } from "../../../../store/plansStore";
 import type { NormalizedPlan } from "../../../../types/plans";
@@ -150,25 +150,11 @@ export default function CountryPlansScreen() {
           </Pressable>
         </View>
 
-        <View
-          style={[
-            styles.searchWrap,
-            isDark ? { backgroundColor: "rgba(148,163,184,0.10)" } : { backgroundColor: "rgba(15,23,42,0.04)" },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={18}
-            color={isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)"}
-          />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search plans"
-            placeholderTextColor={isDark ? "rgba(148,163,184,0.5)" : "rgba(100,116,139,0.6)"}
-            style={[styles.searchInput, isDark && { color: "#F8FAFC" }]}
-          />
-        </View>
+        <PlansSearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search plans"
+        />
 
         <ScrollView
           horizontal
@@ -283,12 +269,13 @@ export default function CountryPlansScreen() {
             <Pressable
               onPress={handleSelectPlan}
               disabled={selecting}
+              className="py-2"
               style={({ pressed }) => [
                 styles.selectPlanBtn,
                 pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
                 selecting && { opacity: 0.7 },
               ]}
-              className="rounded-full py-3"
+
             >
               <LinearGradient
                 colors={["#2563EB", "#1D4ED8"]}
@@ -300,7 +287,7 @@ export default function CountryPlansScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Text style={styles.selectPlanText}>Select plan</Text>
+                    <Text style={styles.selectPlanText}>Continue with this plan</Text>
                     <Ionicons name="arrow-forward" size={18} color="#fff" />
                   </>
                 )}
@@ -380,20 +367,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
   subtitle: { fontSize: 12, color: "#64748B", marginTop: 2 },
 
-  searchWrap: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    height: 46,
-    borderRadius: 16,
-  },
-  searchInput: { flex: 1, height: 46, fontSize: 14, color: "#0F172A" },
-
   regionRow: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 22,
     paddingBottom: 10,
     gap: 10,
   },
@@ -501,7 +476,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 15,
+    borderRadius: 999,
+    paddingVertical: 14,
   },
-  selectPlanText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  selectPlanText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 });

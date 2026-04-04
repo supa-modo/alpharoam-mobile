@@ -334,8 +334,11 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   sheetContent: {
+    width: "100%",
     paddingHorizontal: 24,
     paddingTop: 16,
+    // Lets row + flex children (e.g. payment tabs) measure width correctly on native.
+    alignSelf: "stretch",
   },
   footer: {
     paddingHorizontal: 24,

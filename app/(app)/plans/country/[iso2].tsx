@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useDeferredValue } from "react";
 import {
   View,
   ScrollView,
@@ -9,15 +9,15 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useLocalSearchParams, router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 import { Text } from "../../../../components/Text";
 import { AuthenticatedScreenWrapper } from "../../../../components/AuthenticatedScreenWrapper";
 import { PlansSearchField } from "../../../../components/PlansSearchField";
-import { fetchPlans } from "../../../../services/plans";
+import { usePlansCatalogQuery } from "../../../../hooks/usePlansCatalogQuery";
 import { usePlansStore } from "../../../../store/plansStore";
 import type { NormalizedPlan } from "../../../../types/plans";
 import { AppBottomSheet } from "../../../../components/sheets/AppBottomSheet";
@@ -59,17 +59,18 @@ export default function CountryPlansScreen() {
 
   const selectPlan = usePlansStore((s) => s.selectPlan);
 
-  const { data: plans, isLoading, error, refetch } = useQuery({
-    queryKey: ["alpharoam", "plans"],
-    queryFn: fetchPlans,
-    staleTime: 1000 * 60 * 10,
-  });
+  const { data: plans, error, refetch, isFetching, isPending } = usePlansCatalogQuery();
+
+  const showListSkeleton = !error && (isPending || (isFetching && plans === undefined));
+  const showUpdatingStrip = Boolean(isFetching && !isPending && plans !== undefined);
+
+  const deferredPlans = useDeferredValue(plans ?? []);
 
   const countryPlansRaw = useMemo(() => {
-    return (plans ?? []).filter((p) =>
+    return deferredPlans.filter((p) =>
       p.countries.some((c) => (c.iso2 ?? "").toLowerCase() === iso2.toLowerCase())
     );
-  }, [plans, iso2]);
+  }, [deferredPlans, iso2]);
 
   const regions = useMemo(() => {
     const set = new Set<string>();
@@ -146,7 +147,11 @@ export default function CountryPlansScreen() {
             onPress={() => refetch()}
             style={[styles.backBtn, isDark ? styles.iconBtnDark : styles.iconBtnLight]}
           >
-            <Ionicons name="refresh" size={18} color={isDark ? "#93C5FD" : "#2563EB"} />
+            {isFetching ? (
+              <ActivityIndicator size="small" color={isDark ? "#93C5FD" : "#2563EB"} />
+            ) : (
+              <Ionicons name="refresh" size={18} color={isDark ? "#93C5FD" : "#2563EB"} />
+            )}
           </Pressable>
         </View>
 
@@ -187,13 +192,41 @@ export default function CountryPlansScreen() {
           })}
         </ScrollView>
 
-        {isLoading && !plans ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={[styles.loadingText, isDark && styles.textMutedDark]}>
-              Loading plans...
-            </Text>
+        {showUpdatingStrip ? (
+          <View
+            style={[
+              styles.updatingStrip,
+              isDark ? styles.updatingStripDark : styles.updatingStripLight,
+            ]}
+          >
+            <ActivityIndicator size="small" color={isDark ? "#93C5FD" : "#2563EB"} />
+            <Text style={[styles.updatingText, isDark && styles.textMutedDark]}>Updating plans…</Text>
           </View>
+        ) : null}
+
+        {showListSkeleton ? (
+          <Animated.View entering={FadeIn.duration(180)} style={styles.listWrap}>
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <View
+                key={`plan-skel-${idx}`}
+                style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}
+              >
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1, gap: 8 }}>
+                    <View style={[styles.skeletonLineTitle, isDark && styles.skeletonMutedDark]} />
+                    <View style={[styles.skeletonLineTitleShort, isDark && styles.skeletonMutedDark]} />
+                  </View>
+                  <View style={[styles.skeletonPricePill, isDark && styles.skeletonMutedDark]} />
+                </View>
+                <View style={[styles.skeletonLineMeta, isDark && styles.skeletonMutedDark]} />
+                <View style={[styles.skeletonLineMetaNarrow, isDark && styles.skeletonMutedDark]} />
+                <View style={styles.cardBottom}>
+                  <View style={[styles.skeletonLineRegion, isDark && styles.skeletonMutedDark]} />
+                  <View style={[styles.skeletonLineHint, isDark && styles.skeletonMutedDark]} />
+                </View>
+              </View>
+            ))}
+          </Animated.View>
         ) : error ? (
           <View style={styles.center}>
             <Ionicons
@@ -396,9 +429,67 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
 
+  updatingStrip: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  updatingStripLight: { backgroundColor: "rgba(37,99,235,0.08)" },
+  updatingStripDark: { backgroundColor: "rgba(147,197,253,0.10)" },
+  updatingText: { fontSize: 12, fontWeight: "700", color: "#475569" },
+
   center: { alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 10 },
-  loadingText: { fontSize: 12, color: "#64748B", fontWeight: "600" },
   errorTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
+  skeletonMutedDark: { backgroundColor: "rgba(148,163,184,0.22)" },
+  skeletonLineTitle: {
+    width: "72%",
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "rgba(100,116,139,0.2)",
+  },
+  skeletonLineTitleShort: {
+    width: "48%",
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "rgba(100,116,139,0.16)",
+  },
+  skeletonPricePill: {
+    width: 52,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: "rgba(100,116,139,0.18)",
+  },
+  skeletonLineMeta: {
+    marginTop: 10,
+    width: "88%",
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: "rgba(100,116,139,0.16)",
+  },
+  skeletonLineMetaNarrow: {
+    marginTop: 6,
+    width: "55%",
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: "rgba(100,116,139,0.14)",
+  },
+  skeletonLineRegion: {
+    width: "28%",
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(100,116,139,0.14)",
+  },
+  skeletonLineHint: {
+    width: 72,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(100,116,139,0.14)",
+  },
   retryBtn: { marginTop: 6, backgroundColor: "#2563EB", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 },
   retryText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 

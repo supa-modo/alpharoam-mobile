@@ -1,11 +1,20 @@
-import React, { useCallback, useMemo } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Alert, Image, StatusBar, Platform } from "react-native";
+import React, { useCallback, useEffect, useMemo } from "react";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Alert,
+  Image,
+  StatusBar,
+  Platform,
+  InteractionManager,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 
 import { Text } from "../../components/Text";
@@ -13,7 +22,8 @@ import { useAuthStore } from "../../store/authStore";
 import { usePlansStore } from "../../store/plansStore";
 import { router } from "expo-router";
 import { getTimeGreeting } from "../../lib/greeting";
-import { fetchPlans } from "../../services/plans";
+import { usePlansCatalogQuery } from "../../hooks/usePlansCatalogQuery";
+import { getTopPlanCountries } from "../../lib/topPlanCountries";
 import { QuickCountrySearch } from "../../components/QuickCountrySearch";
 import { PopularDestinations } from "../../components/PopularDestinations";
 import { AuthenticatedScreenWrapper } from "../../components/AuthenticatedScreenWrapper";
@@ -113,23 +123,45 @@ export default function HomeScreen() {
   const greeting = useMemo(() => getTimeGreeting(), []);
   const firstName = user?.full_name?.split(" ")[0] ?? "DemoUser";
 
-  const { data: plans = [] } = useQuery({
-    queryKey: ["alpharoam", "plans"],
-    queryFn: fetchPlans,
-    staleTime: 1000 * 60 * 10,
-  });
+  const { data: plansData } = usePlansCatalogQuery();
+  const plans = plansData ?? [];
+
+  useEffect(() => {
+    router.prefetch("/(app)/plans");
+  }, []);
+
+  useEffect(() => {
+    if (!plansData?.length) return;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      for (const { iso2, name } of getTopPlanCountries(plansData, 8)) {
+        router.prefetch({
+          pathname: "/(app)/plans/country/[iso2]",
+          params: { iso2, name },
+        });
+      }
+    });
+    return () => handle.cancel();
+  }, [plansData]);
+
+  const prefetchCountryRoute = useCallback((iso2: string, name: string) => {
+    router.prefetch({
+      pathname: "/(app)/plans/country/[iso2]",
+      params: { iso2, name },
+    });
+  }, []);
 
   const openPlans = useCallback((country?: { iso2: string; name: string }) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    if (country) {
-      router.push({
-        pathname: "/(app)/plans/country/[iso2]",
-        params: { iso2: country.iso2, name: country.name },
-      });
-    } else {
-      router.push("/(app)/plans");
-    }
+    requestAnimationFrame(() => {
+      if (country) {
+        router.push({
+          pathname: "/(app)/plans/country/[iso2]",
+          params: { iso2: country.iso2, name: country.name },
+        });
+      } else {
+        router.push("/(app)/plans");
+      }
+    });
   }, []);
 
   const onQuickActionPress = useCallback(
@@ -346,6 +378,7 @@ export default function HomeScreen() {
           <PopularDestinations
             plans={plans}
             isDark={isDark}
+            onPrefetchCountry={prefetchCountryRoute}
             onSelectCountry={(iso2, name) => openPlans({ iso2, name })}
           />
         </Animated.View>

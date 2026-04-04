@@ -5,6 +5,7 @@ import type {
   AlphaRoamCountry,
   NormalizedPlan,
 } from "../types/plans";
+import { writePlansDiskCache } from "../lib/plansDiskCache";
 
 const PLANS_URL = "https://kleptica.co.ke/project/alpharoam/all.json";
 const PLANS_SOURCE = process.env.EXPO_PUBLIC_PLANS_SOURCE ?? "local";
@@ -85,7 +86,19 @@ export async function fetchPlansLocal(): Promise<NormalizedPlan[]> {
   return plans.map(normalizePlan);
 }
 
+/** Allow a paint (e.g. skeletons) before heavy sync JSON work on the JS thread. */
+function yieldToUi(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 export async function fetchPlans(): Promise<NormalizedPlan[]> {
-  if (PLANS_SOURCE === "remote") return fetchPlansRemote();
-  return fetchPlansLocal();
+  await yieldToUi();
+  const plans =
+    PLANS_SOURCE === "remote" ? await fetchPlansRemote() : await fetchPlansLocal();
+  void writePlansDiskCache(plans).catch(() => {});
+  return plans;
 }

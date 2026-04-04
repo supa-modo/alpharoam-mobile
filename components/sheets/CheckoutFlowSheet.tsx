@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { View, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Pressable, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { router } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome, FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { Text } from "../Text";
@@ -77,6 +77,33 @@ function formatExpiryInput(raw: string): string {
   return `${d.slice(0, 2)}/${d.slice(2)}`;
 }
 
+/** Masked PAN for preview: bullets except the last up to four digits. */
+function formatMaskedPan(raw: string): string {
+  const d = digitsOnly(raw).slice(0, 19);
+  if (d.length === 0) return "••••  ••••  ••••  ••••";
+  const chars: string[] = [];
+  for (let i = 0; i < d.length; i++) {
+    chars.push(d.length > 4 && i < d.length - 4 ? "•" : d[i]!);
+  }
+  const parts: string[] = [];
+  for (let i = 0; i < chars.length; i += 4) {
+    parts.push(chars.slice(i, i + 4).join(""));
+  }
+  return parts.join("  ");
+}
+
+function inferCardBrandLabel(raw: string): string | null {
+  const d = digitsOnly(raw);
+  if (d.length === 0) return null;
+  if (d.startsWith("4")) return "Visa";
+  if (/^5[1-5]/.test(d)) return "Mastercard";
+  if (/^3[47]/.test(d)) return "Amex";
+  if (/^6(?:011|5)/.test(d)) return "Discover";
+  return null;
+}
+
+type CardFieldFocus = "number" | "name" | "expiry" | "cvv" | null;
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -98,6 +125,8 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [cardName, setCardName] = useState("");
+  const [cardFieldFocus, setCardFieldFocus] = useState<CardFieldFocus>(null);
+  const [mpesaFieldFocused, setMpesaFieldFocused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
 
@@ -115,6 +144,8 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
       setCardExpiry("");
       setCardCvv("");
       setCardName("");
+      setCardFieldFocus(null);
+      setMpesaFieldFocused(false);
       setMethod("mpesa");
       setWalletProvider("google");
     }
@@ -250,8 +281,7 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
 
             <Text style={styles.heroPrice}>{formatUsd(pricing.total)}</Text>
           </LinearGradient>
-
-          <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>ORDER SUMMARY</Text>
+{/* 
           <View style={[styles.summaryCard, isDark ? styles.summaryCardDark : styles.summaryCardLight]}>
             <SummaryRow label="Plan" value={selected.plan.name} isDark={isDark} />
 
@@ -260,220 +290,365 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
               <Text style={[styles.totalLabel, isDark && styles.textLight]}>Total due</Text>
               <Text style={styles.totalVal}>{formatUsd(pricing.total)}</Text>
             </View>
-          </View>
+          </View> */}
 
-          <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>PAYMENT METHOD</Text>
-          <View className="flex flex-row gap-2 py-2 px-4 rounded-2xl" style={[styles.tabBar, isDark ? styles.tabBarDark : styles.tabBarLight]}>
-            <Pressable
-              className="py-3 px-4"
-              onPress={() => {
-                void Haptics.selectionAsync();
-                setMethod("mpesa");
-              }}
-              style={({ pressed }) => [
-                styles.tab,
-                method === "mpesa" && (isDark ? styles.tabActiveDark : styles.tabActiveLight),
-                pressed && { opacity: 0.88 },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  method === "mpesa" ? (isDark ? styles.tabLabelActiveDark : styles.tabLabelActive) : styles.tabLabelOff,
-                ]}
-              >
-                M-Pesa
-              </Text>
+          <Text style={[styles.sectionLabel, styles.sectionLabelPad, isDark && styles.sectionLabelDark]}>
+            PAYMENT METHOD
+          </Text>
+          <View className="flex flex-row gap-2.5 justify-between" style={[styles.methodTabBar, isDark ? styles.methodTabBarDark : styles.methodTabBarLight]}>
+          <Pressable
+          className="w-[1/3] flex py-3 px-4 items-center justify-center"
+            
+  onPress={() => {
+    void Haptics.selectionAsync();
+    setMethod("mpesa");
+  }}
+  style={({ pressed }) => [
+    styles.methodTab,
+    method === "mpesa" && (isDark ? styles.methodTabActiveDark : styles.methodTabActiveLight),
+    pressed && { opacity: 0.9 },
+  ]}
+>
+              <View style={styles.methodTabInner}>
+                <MpesaIcon width={60} height={20} />
+                
+              </View>
             </Pressable>
             <Pressable
-              className="py-3 px-4"
+            className="w-[1/3] flex py-3 px-4 items-center justify-center"
               onPress={() => {
                 void Haptics.selectionAsync();
                 setMethod("card");
               }}
               style={({ pressed }) => [
-                styles.tab,
-                method === "card" && (isDark ? styles.tabActiveDark : styles.tabActiveLight),
-                pressed && { opacity: 0.88 },
+                styles.methodTab,
+                method === "card" && (isDark ? styles.methodTabActiveDark : styles.methodTabActiveLight),
+                pressed && { opacity: 0.9 },
               ]}
             >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  method === "card" ? (isDark ? styles.tabLabelActiveDark : styles.tabLabelActive) : styles.tabLabelOff,
-                ]}
-              >
-                Card
-              </Text>
+              <View className="flex flex-row gap-2" style={styles.methodTabInner}>
+                <Ionicons
+                  name="card-outline"
+                  size={24}
+                  color={method === "card" ? (isDark ? "#60A5FA" : "#2563EB") : "#64748B"}
+                />
+                <Text
+                  style={[
+                    styles.methodTabCaption,
+                    method === "card"
+                      ? isDark
+                        ? styles.tabLabelActiveDark
+                        : styles.tabLabelActive
+                      : styles.tabLabelOff,
+                  ]}
+                >
+                  Card
+                </Text>
+              </View>
             </Pressable>
             <Pressable
-              className="py-3 px-4"
+            className="w-[1/3] flex py-3 px-4 px-auto items-center justify-center"
               onPress={() => {
                 void Haptics.selectionAsync();
                 setMethod("wallet");
               }}
               style={({ pressed }) => [
-                styles.tab,
-                method === "wallet" && (isDark ? styles.tabActiveDark : styles.tabActiveLight),
-                pressed && { opacity: 0.88 },
+                styles.methodTab,
+                method === "wallet" && (isDark ? styles.methodTabActiveDark : styles.methodTabActiveLight),
+                pressed && { opacity: 0.9 },
               ]}
             >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  method === "wallet" ? (isDark ? styles.tabLabelActiveDark : styles.tabLabelActive) : styles.tabLabelOff,
-                ]}
-              >
-                Wallet
-              </Text>
+              <View className="flex flex-row gap-2" style={styles.methodTabInner}>
+                <Ionicons
+                  name="wallet-outline"
+                  size={24}
+                  color={method === "wallet" ? (isDark ? "#60A5FA" : "#2563EB") : "#64748B"}
+                />
+                <Text
+                  style={[
+                    styles.methodTabCaption,
+                    method === "wallet"
+                      ? isDark
+                        ? styles.tabLabelActiveDark
+                        : styles.tabLabelActive
+                      : styles.tabLabelOff,
+                  ]}
+                >
+                  Wallet
+                </Text>
+              </View>
             </Pressable>
           </View>
 
           {method === "mpesa" ? (
-            <View style={styles.fieldBlock}>
-              <Text style={[styles.fieldLabel, isDark && styles.fieldLabelDark]}>M-PESA PHONE NUMBER</Text>
-              <TextInput
-                value={mpesaPhone}
-                onChangeText={setMpesaPhone}
-                placeholder="0712 345 678 or 2547XXXXXXXX"
-                placeholderTextColor={placeholder}
-                keyboardType="phone-pad"
-                style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-                autoCorrect={false}
-              />
-              <Text style={[styles.fieldHint, isDark && styles.fieldHintDark]}>
-                Your safaricom number registered for M-Pesa
-              </Text>
-            </View>
-          ) : method === "card" ? (
-            <View className="" style={styles.fieldBlock}>
-              <View style={styles.fieldWrap}>
-                <Text style={[styles.fieldLabel, isDark && styles.fieldLabelDark]}>NAME ON CARD</Text>
-                <TextInput
-                  value={cardName}
-                  onChangeText={setCardName}
-                  placeholder="John Kamau"
-                  placeholderTextColor={placeholder}
-                  style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-                  autoCapitalize="words"
-                />
-              </View>
-              <View style={styles.fieldWrap}>
-                <Text style={[styles.fieldLabel, isDark && styles.fieldLabelDark]}>CARD NUMBER</Text>
-                <TextInput
-                  value={cardNumber}
-                  onChangeText={(t) => setCardNumber(formatCardGroups(t))}
-                  placeholder="XXXX  XXXX  XXXX  XXXX"
-                  placeholderTextColor={placeholder}
-                  keyboardType="number-pad"
-                  style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <View style={styles.fieldWrapHalf}>
-                  <Text style={[styles.fieldLabel, isDark && styles.fieldLabelDark]}>EXPIRY</Text>
+            <View
+              style={[
+                styles.cardPanel,
+                isDark ? styles.cardPanelDark : styles.cardPanelLight,
+              ]}
+            >
+              <LinearGradient
+                colors={["#022c22", "#064e3b"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.mpesaPreview}
+              >
+                <View style={styles.mpesaPreviewTop}>
+                  <MpesaIcon width={84} height={24} variant="white" />
+                </View>
+                <Text style={styles.mpesaPreviewSub}>STK Push to your Safaricom Mpesa line</Text>
+              </LinearGradient>
+              <View style={styles.cardFormInner}>
+                <View style={styles.fieldWrap}>
+                  <Text style={[styles.cardFieldLabel, isDark && styles.cardFieldLabelDark]}>Phone number</Text>
                   <TextInput
-                    value={cardExpiry}
-                    onChangeText={(t) => setCardExpiry(formatExpiryInput(t))}
-                    placeholder="MM / YY"
+                    value={mpesaPhone}
+                    onChangeText={setMpesaPhone}
+                    placeholder="0712 345 678 or 2547XXXXXXXX"
                     placeholderTextColor={placeholder}
-                    keyboardType="number-pad"
-                    style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+                    keyboardType="phone-pad"
+                    autoCorrect={false}
+                    onFocus={() => setMpesaFieldFocused(true)}
+                    onBlur={() => setMpesaFieldFocused(false)}
+                    className="border"
+                    style={[
+                      isDark ? styles.inputDark : styles.inputLight,
+                      styles.cardInputPrimary,
+                      mpesaFieldFocused && (isDark ? styles.inputFocusedDark : styles.inputFocusedLight),
+                      Platform.OS === "ios" && { fontVariant: ["tabular-nums"] as const },
+                    ]}
                   />
                 </View>
-                <View style={styles.fieldWrapHalf}>
-                  <Text style={[styles.fieldLabel, isDark && styles.fieldLabelDark]}>CVV</Text>
+                <Text style={[styles.mpesaFieldHint, isDark && styles.fieldHintDark]}>
+                  Use your registered Safaricom Mpesa number
+                </Text>
+              </View>
+            </View>
+          ) : method === "card" ? (
+            <View
+              style={[
+                styles.cardPanel,
+                isDark ? styles.cardPanelDark : styles.cardPanelLight,
+              ]}
+            >
+              <LinearGradient
+                colors={["#0B1220", "#1E293B"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.cardPreview}
+              >
+                <View style={styles.cardPreviewHeader}>
+                  <View style={styles.cardBrandMarks}>
+                    <FontAwesome name="cc-mastercard" size={30} color="rgba(255,255,255,0.95)" />
+                    <FontAwesome name="cc-visa" size={28} color="rgba(255,255,255,0.95)" style={styles.cardBrandMarkVisa} />
+                  </View>
+                  <MaterialCommunityIcons
+                    name="contactless-payment"
+                    size={22}
+                    color="rgba(255,255,255,0.6)"
+                  />
+                </View>
+                <Text
+                  style={styles.cardPreviewPan}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                >
+                  {formatMaskedPan(cardNumber)}
+                </Text>
+                <Text style={styles.cardPreviewBrand} numberOfLines={1}>
+                  {inferCardBrandLabel(cardNumber) ?? "Debit or credit"}
+                </Text>
+              </LinearGradient>
+
+              <View style={styles.cardFormInner}>
+                <View style={styles.fieldWrap}>
+                  <Text style={[styles.cardFieldLabel, isDark && styles.cardFieldLabelDark]}>Card number</Text>
                   <TextInput
-                    value={cardCvv}
-                    onChangeText={(t) => setCardCvv(digitsOnly(t).slice(0, 4))}
-                    placeholder="• • •"
+                    value={cardNumber}
+                    onChangeText={(t) => setCardNumber(formatCardGroups(t))}
+                    placeholder="4242  4242  4242  4242"
                     placeholderTextColor={placeholder}
                     keyboardType="number-pad"
-                    secureTextEntry
-                    style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+                    onFocus={() => setCardFieldFocus("number")}
+                    onBlur={() => setCardFieldFocus(null)}
+                    className="border"
+                    style={[
+                      isDark ? styles.inputDark : styles.inputLight,
+                      styles.cardInputPrimary,
+                      cardFieldFocus === "number" &&
+                        (isDark ? styles.inputFocusedDark : styles.inputFocusedLight),
+                      Platform.OS === "ios" && { fontVariant: ["tabular-nums"] as const },
+                    ]}
                   />
+                </View>
+                <View style={styles.fieldWrap}>
+                  <Text style={[styles.cardFieldLabel, isDark && styles.cardFieldLabelDark]}>Name on card</Text>
+                  <TextInput
+                    value={cardName}
+                    onChangeText={setCardName}
+                    placeholder="John Kamau"
+                    placeholderTextColor={placeholder}
+                    autoCapitalize="words"
+                    onFocus={() => setCardFieldFocus("name")}
+                    onBlur={() => setCardFieldFocus(null)}
+                    className="border"
+                    style={[
+                      styles.cardInputPrimary,
+                      isDark ? styles.inputDark : styles.inputLight,
+                      cardFieldFocus === "name" &&
+                        (isDark ? styles.inputFocusedDark : styles.inputFocusedLight),
+                    ]}
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <View style={styles.fieldWrapHalf}>
+                    <Text style={[styles.cardFieldLabel, isDark && styles.cardFieldLabelDark]}>Expiry</Text>
+                    <TextInput
+                      value={cardExpiry}
+                      onChangeText={(t) => setCardExpiry(formatExpiryInput(t))}
+                      placeholder="MM / YY"
+                      placeholderTextColor={placeholder}
+                      keyboardType="number-pad"
+                      onFocus={() => setCardFieldFocus("expiry")}
+                      onBlur={() => setCardFieldFocus(null)}
+                      className="border"
+                      style={[
+                        styles.input,
+                        isDark ? styles.inputDark : styles.inputLight,
+                        cardFieldFocus === "expiry" &&
+                          (isDark ? styles.inputFocusedDark : styles.inputFocusedLight),
+                        Platform.OS === "ios" && { fontVariant: ["tabular-nums"] as const },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.fieldWrapHalf}>
+                    <Text style={[styles.cardFieldLabel, isDark && styles.cardFieldLabelDark]}>CVV</Text>
+                    <TextInput
+                      value={cardCvv}
+                      onChangeText={(t) => setCardCvv(digitsOnly(t).slice(0, 4))}
+                      placeholder="• • •"
+                      placeholderTextColor={placeholder}
+                      keyboardType="number-pad"
+                      secureTextEntry
+                      onFocus={() => setCardFieldFocus("cvv")}
+                      onBlur={() => setCardFieldFocus(null)}
+                      className="border"
+                      style={[
+                        styles.input,
+                        isDark ? styles.inputDark : styles.inputLight,
+                        cardFieldFocus === "cvv" &&
+                          (isDark ? styles.inputFocusedDark : styles.inputFocusedLight),
+                        Platform.OS === "ios" && { fontVariant: ["tabular-nums"] as const },
+                      ]}
+                    />
+                  </View>
                 </View>
               </View>
             </View>
           ) : (
-            <View className="flex flex-col gap-2" style={styles.walletMethods}>
-              <Pressable
-                onPress={() => {
-                  void Haptics.selectionAsync();
-                  setWalletProvider("google");
-                }}
-                className="flex flex-row items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-2xl"
-                style={({ pressed }) => [
-                  styles.walletMethod,
-                  isDark ? styles.walletMethodDark : styles.walletMethodLight,
-                  walletProvider === "google" && styles.walletMethodActive,
-                  pressed && { opacity: 0.92 },
-                ]}
+            <View
+              style={[
+                styles.cardPanel,
+                isDark ? styles.cardPanelDark : styles.cardPanelLight,
+              ]}
+            >
+              <LinearGradient
+                colors={["#0B1220", "#1E293B"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                className="flex flex-row items-center gap-4"
+                style={styles.walletPreview}
               >
-                <View
-                  style={[
-                    styles.walletIcon,
-                    walletProvider === "google" && styles.walletIconActive,
-                    { backgroundColor: walletProvider === "google" ? "#2563EB" : isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)" },
-                  ]}
-                >
-                  <Text style={styles.walletIconText}>G</Text>
+                <View style={styles.walletPreviewIconRow}>
+                  <MaterialCommunityIcons name="wallet-outline" size={32} color="rgba(255,255,255,0.9)" />
                 </View>
-                <View style={styles.walletInfo}>
-                  <Text style={[styles.walletName, isDark && styles.textLight]}>Google Pay</Text>
-                  <Text style={[styles.walletSub, isDark && styles.textMuted]}>Fast & secure one-tap</Text>
-                </View>
-                <View
-                  style={[
-                    styles.walletCheck,
-                    isDark ? styles.walletCheckDark : styles.walletCheckLight,
-                    walletProvider === "google" && styles.walletCheckActive,
-                  ]}
-                >
-                  {walletProvider === "google" ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
-                </View>
-              </Pressable>
+                <View className="flex flex-col items-start ">
+                <Text style={styles.walletPreviewTitle}>Digital wallet</Text>
+                <Text style={styles.walletPreviewSub}>One-tap checkout with your saved card</Text></View>
+              </LinearGradient>
 
-              <Pressable
-                onPress={() => {
-                  void Haptics.selectionAsync();
-                  setWalletProvider("apple");
-                }}
-                className=" flex flex-row items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-2xl"
-                style={({ pressed }) => [
-                  styles.walletMethod,
-                  isDark ? styles.walletMethodDark : styles.walletMethodLight,
-                  walletProvider === "apple" && styles.walletMethodActive,
-                  pressed && { opacity: 0.92 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.walletIcon,
-                    walletProvider === "apple" && styles.walletIconActive,
-                    { backgroundColor: walletProvider === "apple" ? "#2563EB" : isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)" },
+              <View style={styles.walletList}>
+                <Pressable
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    setWalletProvider("google");
+                  }}
+                  className="flex flex-row items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-2xl"
+                  style={({ pressed }) => [
+                    styles.walletMethod,
+                    isDark ? styles.walletMethodDark : styles.walletMethodLight,
+                    walletProvider === "google" && styles.walletMethodActive,
+                    pressed && { opacity: 0.92 },
                   ]}
                 >
-                  <Ionicons
-                    name="logo-apple"
-                    size={20}
-                    color={walletProvider === "apple" ? "#fff" : isDark ? "#94A3B8" : "#475569"}
-                  />
-                </View>
-                <View style={styles.walletInfo}>
-                  <Text style={[styles.walletName, isDark && styles.textLight]}>Apple Pay</Text>
-                  <Text style={[styles.walletSub, isDark && styles.textMuted]}>One-tap checkout</Text>
-                </View>
-                <View
-                  style={[
-                    styles.walletCheck,
-                    isDark ? styles.walletCheckDark : styles.walletCheckLight,
-                    walletProvider === "apple" && styles.walletCheckActive,
+                  <View
+                    style={[
+                      styles.walletGoogleMarkWrap,
+                      isDark ? styles.walletGoogleMarkWrapDark : styles.walletGoogleMarkWrapLight,
+                    ]}
+                  >
+                    <FontAwesome5 name="google-pay" size={22} brand />
+                  </View>
+                  <View style={styles.walletInfo}>
+                    <Text style={[styles.walletName, isDark && styles.textLight]}>Google Pay</Text>
+                    <Text style={[styles.walletSub, isDark && styles.textMuted]}>Fast and secure one-tap</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.walletCheck,
+                      isDark ? styles.walletCheckDark : styles.walletCheckLight,
+                      walletProvider === "google" && styles.walletCheckActive,
+                    ]}
+                  >
+                    {walletProvider === "google" ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    setWalletProvider("apple");
+                  }}
+                  className="flex flex-row items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-2xl"
+                  style={({ pressed }) => [
+                    styles.walletMethod,
+                    isDark ? styles.walletMethodDark : styles.walletMethodLight,
+                    walletProvider === "apple" && styles.walletMethodActive,
+                    pressed && { opacity: 0.92 },
                   ]}
                 >
-                  {walletProvider === "apple" ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
-                </View>
-              </Pressable>
+                  <View
+                    style={[
+                      styles.walletAppleIconWrap,
+                      walletProvider === "apple"
+                        ? styles.walletAppleIconWrapActive
+                        : isDark
+                          ? styles.walletAppleIconWrapIdleDark
+                          : styles.walletAppleIconWrapIdleLight,
+                    ]}
+                  >
+                    <Ionicons
+                      name="logo-apple"
+                      size={22}
+                      color={walletProvider === "apple" ? "#fff" : isDark ? "#94A3B8" : "#475569"}
+                    />
+                  </View>
+                  <View style={styles.walletInfo}>
+                    <Text style={[styles.walletName, isDark && styles.textLight]}>Apple Pay</Text>
+                    <Text style={[styles.walletSub, isDark && styles.textMuted]}>Face ID or Touch ID checkout</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.walletCheck,
+                      isDark ? styles.walletCheckDark : styles.walletCheckLight,
+                      walletProvider === "apple" && styles.walletCheckActive,
+                    ]}
+                  >
+                    {walletProvider === "apple" ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
+                  </View>
+                </Pressable>
+              </View>
             </View>
           )}
 
@@ -482,7 +657,6 @@ export function CheckoutFlowSheet({ visible, onClose }: Props) {
               <Ionicons name="shield-checkmark-outline" size={14} color={isDark ? "#64748B" : "#94A3B8"} />
               <Text style={[styles.trustText, isDark && styles.textMuted]}>256-bit encrypted secure payment gateway</Text>
             </View>
-            <Text style={[styles.trustText, isDark && styles.textMuted]}>Receipt to {user?.email ?? "your account"}</Text>
           </View>
         </>
       ) : successId ? (
@@ -574,13 +748,13 @@ const styles = StyleSheet.create({
   },
   heroName: {
     fontSize: 17,
-    fontWeight: "500",
+    fontWeight: "700",
     color: "#FFFFFF",
     marginBottom: 4,
   },
   heroMeta: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
     marginBottom: 16,
   },
   heroStatsRow: {
@@ -597,12 +771,13 @@ const styles = StyleSheet.create({
   },
   statVal: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "800",
     color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   statLbl: {
-    fontSize: 9,
-    color: "rgba(255,255,255,0.7)",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.9)",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 1,
@@ -612,7 +787,7 @@ const styles = StyleSheet.create({
     top: 16,
     right: 16,
     fontSize: 22,
-    fontWeight: "500",
+    fontWeight: "900",
     color: "#FFFFFF",
   },
 
@@ -625,6 +800,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionLabelDark: { color: "rgba(148,163,184,0.7)" },
+  sectionLabelPad: { paddingLeft: 8 },
 
   summaryCard: {
     borderRadius: 16,
@@ -634,7 +810,7 @@ const styles = StyleSheet.create({
   },
   summaryCardLight: {
     backgroundColor: "#FFFFFF",
-    borderColor: "rgba(15,23,42,0.08)",
+    borderColor: "rgba(15,23,42,0.15)",
   },
   summaryCardDark: {
     backgroundColor: "rgba(255,255,255,0.04)",
@@ -672,10 +848,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   totalRowLight: {
-    backgroundColor: "rgba(15,23,42,0.02)",
+    backgroundColor: "rgba(15,23,42,0.15)",
   },
   totalRowDark: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
   totalLabel: {
     fontSize: 14,
@@ -688,35 +864,61 @@ const styles = StyleSheet.create({
     color: "#2563EB",
   },
 
-  tabBar: {
+  methodTabBar: {
     flexDirection: "row",
-    gap: 6,
-    padding: 3,
-    borderRadius: 10,
-    marginBottom: 10,
+    alignSelf: "stretch",
+    width: "100%",
+    padding: 4,
+    gap: 10,
+    borderRadius: 16,
+    marginBottom: 14,
+    // Hairline is often 0 on Android — use 1px so the rail reads on device.
+    borderWidth: Platform.OS === "android" ? 1 : StyleSheet.hairlineWidth,
   },
-  tabBarLight: {
-    backgroundColor: "rgba(15,23,42,0.04)",
+  methodTabBarLight: {
+    backgroundColor: "rgba(15,23,42,0.01)",
+    borderColor: "rgba(15,23,42,0.1)",
   },
-  tabBarDark: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+  methodTabBarDark: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  tab: {
-    flex: 1,
-    height: 32,
-    borderRadius: 8,
+  methodTab: {
+    flex: 1,              // ← replaces w-[1/3], works correctly in RN
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
+    marginHorizontal: 2,
+    borderRadius: 12,
   },
-  tabActiveLight: {
+  methodTabActiveLight: {
     backgroundColor: "#FFFFFF",
-    borderWidth: 0.5,
-    borderColor: "rgba(15,23,42,0.08)",
+    borderWidth: Platform.OS === "android" ? 1 : StyleSheet.hairlineWidth,
+    borderColor: "rgba(37,99,235,0.25)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0f172a",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
+      android: { elevation: 2 },
+    }),
   },
-  tabActiveDark: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.12)",
+  methodTabActiveDark: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: Platform.OS === "android" ? 1 : StyleSheet.hairlineWidth,
+    borderColor: "rgba(96,165,250,0.35)",
+  },
+  methodTabInner: {
+    alignItems: "center",
+    
+  },
+  methodTabCaption: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   tabLabel: {
     fontSize: 12,
@@ -730,6 +932,108 @@ const styles = StyleSheet.create({
   },
   tabLabelOff: {
     color: "#64748B",
+  },
+
+  mpesaPreview: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+  },
+  mpesaPreviewTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  mpesaPreviewSub: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.65)",
+  },
+  mpesaFieldHint: {
+    fontSize: 12,
+    color: "#94A3B8",
+    paddingLeft: 5,
+    marginTop: -4,
+  },
+
+  cardPanel: {
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  cardPanelLight: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "rgba(15,23,42,0.22)",
+  },
+  cardPanelDark: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  cardPreview: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+  },
+  cardPreviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  cardBrandMarks: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  cardBrandMarkVisa: {
+    marginLeft: 12,
+  },
+  cardPreviewPan: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "rgba(248,250,252,0.95)",
+    letterSpacing: 1.2,
+    marginBottom: 6,
+  },
+  cardPreviewBrand: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "rgba(148,163,184,0.88)",
+    letterSpacing: 0.3,
+  },
+  cardFormInner: {
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 14,
+    gap: 14,
+  },
+  cardFieldLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 2,
+    paddingLeft: 4,
+  },
+  cardFieldLabelDark: {
+    color: "rgba(148,163,184,0.88)",
+  },
+  cardInputPrimary: {
+    height: 44,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontWeight: "500",
+    letterSpacing: 0.4,
+  },
+  inputFocusedLight: {
+    borderColor: "#2563EB",
+    borderWidth: 1,
+  },
+  inputFocusedDark: {
+    borderColor: "#60A5FA",
+    borderWidth: 1,
   },
 
   fieldBlock: {
@@ -755,16 +1059,16 @@ const styles = StyleSheet.create({
     color: "rgba(148,163,184,0.75)",
   },
   input: {
-    height: 44,
+    height: 40,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    fontSize: 14,
+    paddingHorizontal: 10,
+    fontSize: 13,
     fontWeight: "400",
     borderWidth: 0.5,
   },
   inputLight: {
-    backgroundColor: "rgba(15,23,42,0.02)",
-    borderColor: "rgba(15,23,42,0.2)",
+    backgroundColor: "rgba(15,23,42,0.08)",
+    borderColor: "rgba(15,23,42,0.1)",
     color: "#0F172A",
   },
   inputDark: {
@@ -786,53 +1090,94 @@ const styles = StyleSheet.create({
     color: "rgba(148,163,184,0.65)",
   },
 
-  walletMethods: {
-    gap: 8,
+  walletPreview: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
+  walletPreviewIconRow: {
+    marginBottom: 10,
+  },
+  walletPreviewTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "rgba(248,250,252,0.96)",
     marginBottom: 4,
+  },
+  walletPreviewSub: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(148,163,184,0.9)",
+  },
+  walletList: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
+    gap: 10,
   },
   walletMethod: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 13,
-    borderRadius: 10,
-    borderWidth: 0.5,
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   walletMethodLight: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "rgba(15,23,42,0.08)",
+    backgroundColor: "rgba(15,23,42,0.02)",
+    borderColor: "rgba(15,23,42,0.1)",
   },
   walletMethodDark: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
   walletMethodActive: {
     borderWidth: 1.5,
     borderColor: "#2563EB",
-    backgroundColor: "rgba(37,99,235,0.05)",
+    backgroundColor: "rgba(37,99,235,0.06)",
   },
-  walletIcon: {
-    width: 40,
+  walletGoogleMarkWrap: {
+    width: 48,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  walletGoogleMarkWrapLight: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(15,23,42,0.08)",
+  },
+  walletGoogleMarkWrapDark: {
+    backgroundColor: "rgba(248,250,252,0.98)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(15,23,42,0.12)",
+  },
+  walletAppleIconWrap: {
+    width: 48,
     height: 40,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  walletIconActive: {
-    backgroundColor: "#2563EB",
+  walletAppleIconWrapIdleLight: {
+    backgroundColor: "rgba(15,23,42,0.06)",
   },
-  walletIconText: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#FFFFFF",
+  walletAppleIconWrapIdleDark: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  walletAppleIconWrapActive: {
+    backgroundColor: "#2563EB",
   },
   walletInfo: {
     flex: 1,
     minWidth: 0,
   },
   walletName: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "600",
     color: "#0F172A",
   },
   walletSub: {
@@ -863,8 +1208,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     gap: 4,
-    marginTop: 14,
-    paddingBottom: 8,
+    marginTop: 7,
     textAlign: "center",
   },
   trustText: {
@@ -894,7 +1238,7 @@ const styles = StyleSheet.create({
     height: 49,
   },
   payBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  changePlan: { textAlign: "center", fontSize: 12, fontWeight: "500", color: "#2563EB", paddingVertical: 6 },
+  changePlan: { textAlign: "center", fontSize: 12, fontWeight: "600", color: "#2563EB", paddingVertical: 6 },
 
   successBody: {
     alignItems: "center",

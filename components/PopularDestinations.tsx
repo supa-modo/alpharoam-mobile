@@ -3,6 +3,7 @@ import { ImageBackground, Platform, Pressable, ScrollView, StyleSheet, View } fr
 import { LinearGradient } from "expo-linear-gradient";
 
 import type { NormalizedPlan } from "../types/plans";
+import { getTopPlanCountries } from "../lib/topPlanCountries";
 import { iso2ToFlagEmoji } from "../lib/countryFlags";
 import { Text } from "./Text";
 
@@ -18,6 +19,7 @@ type PopularDestinationsProps = {
   plans: NormalizedPlan[];
   isDark: boolean;
   onSelectCountry: (iso2: string, name: string) => void;
+  onPrefetchCountry?: (iso2: string, name: string) => void;
 };
 
 const DESTINATION_COLORS: [string, string][] = [
@@ -40,33 +42,18 @@ const DESTINATION_IMAGE_SOURCE: Record<string, number> = {
   MA: require("../assets/images/destinations/eg.jpg"),
 };
 
-export function PopularDestinations({ plans, isDark, onSelectCountry }: PopularDestinationsProps) {
+export function PopularDestinations({
+  plans,
+  isDark,
+  onSelectCountry,
+  onPrefetchCountry,
+}: PopularDestinationsProps) {
   const destinations = useMemo(() => {
-    const map = new Map<string, { name: string; plans: Set<number> }>();
-    for (const plan of plans) {
-      for (const country of plan.countries) {
-        const iso2 = (country.iso2 ?? "").trim().toUpperCase();
-        if (!iso2) continue;
-        const name = (country.country_name ?? "").trim();
-        const existing = map.get(iso2);
-        if (existing) {
-          existing.plans.add(plan.id);
-        } else {
-          map.set(iso2, { name, plans: new Set([plan.id]) });
-        }
-      }
-    }
-
-    return Array.from(map.entries())
-      .map(([iso2, value], i) => ({
-        iso2,
-        name: value.name || iso2,
-        plansCount: value.plans.size,
-        colors: DESTINATION_COLORS[i % DESTINATION_COLORS.length],
-        imageSource: DESTINATION_IMAGE_SOURCE[iso2] ?? null,
-      }))
-      .sort((a, b) => b.plansCount - a.plansCount)
-      .slice(0, 6);
+    return getTopPlanCountries(plans, 6).map((d, i) => ({
+      ...d,
+      colors: DESTINATION_COLORS[i % DESTINATION_COLORS.length],
+      imageSource: DESTINATION_IMAGE_SOURCE[d.iso2] ?? null,
+    }));
   }, [plans]);
 
   if (destinations.length === 0) return null;
@@ -80,6 +67,7 @@ export function PopularDestinations({ plans, isDark, onSelectCountry }: PopularD
           return (
             <Pressable
               key={destination.iso2}
+              onPressIn={() => onPrefetchCountry?.(destination.iso2, destination.name)}
               onPress={() => onSelectCountry(destination.iso2, destination.name)}
               style={({ pressed }) => [
                 styles.cardWrap,

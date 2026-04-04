@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useDeferredValue, memo, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -9,17 +9,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
-import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
+import { FlashList } from "@shopify/flash-list";
 
 import { Text } from "../../../components/Text";
 import { AuthenticatedScreenWrapper } from "../../../components/AuthenticatedScreenWrapper";
 import { PlansSearchField } from "../../../components/PlansSearchField";
-import { fetchPlans } from "../../../services/plans";
 import { iso2ToFlagEmoji } from "../../../lib/countryFlags";
 import type { AlphaRoamCountry, NormalizedPlan } from "../../../types/plans";
+import { usePlansCatalogQuery } from "../../../hooks/usePlansCatalogQuery";
 
 type CountryRow = {
   iso2: string;
@@ -51,6 +51,53 @@ function buildCountries(plans: NormalizedPlan[]): CountryRow[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+type CountryListRowProps = {
+  country: CountryRow;
+  isDark: boolean;
+  isLast: boolean;
+};
+
+const CountryListRow = memo(function CountryListRow({ country, isDark, isLast }: CountryListRowProps) {
+  const flagEmoji = iso2ToFlagEmoji(country.iso2);
+  const onPress = useCallback(() => {
+    router.push({
+      pathname: "/(app)/plans/country/[iso2]" as const,
+      params: { iso2: country.iso2, name: country.name },
+    });
+  }, [country.iso2, country.name]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex flex-row items-center mb-2 gap-3 py-4 px-4 rounded-2xl  border border-gray-300 dark:border-gray-700"
+      style={({ pressed }) => [
+        isDark ? styles.cardDark : styles.cardLight,
+        !isLast && styles.rowSpacing,
+        pressed && (isDark ? styles.rowPressedDark : styles.rowPressedLight),
+      ]}
+    >
+      {flagEmoji ? (
+        <Text style={styles.flagEmoji}>{flagEmoji}</Text>
+      ) : (
+        <View style={styles.flagCircle}>
+          <Text style={styles.flagText}>{country.iso2.toUpperCase()}</Text>
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.countryName, isDark && styles.textLight]}>{country.name}</Text>
+        <Text style={[styles.countryMeta, isDark && styles.textMutedDark]}>
+          {country.plansCount} plan{country.plansCount === 1 ? "" : "s"}
+        </Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={18}
+        color={isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)"}
+      />
+    </Pressable>
+  );
+});
+
 export default function PlansScreen() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
@@ -58,32 +105,28 @@ export default function PlansScreen() {
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState<string>("All regions");
 
-  const {
-    data: plans,
-    isLoading,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery({
-    queryKey: ["alpharoam", "plans"],
-    queryFn: fetchPlans,
-    staleTime: 1000 * 60 * 10,
-  });
+  const { data: plans, error, refetch, isFetching, isPending } = usePlansCatalogQuery();
+
+  const showListSkeleton = !error && (isPending || (isFetching && plans === undefined));
+  const showUpdatingStrip = Boolean(isFetching && !isPending && plans !== undefined);
+
+  const rawPlans = plans ?? [];
+  const deferredPlans = useDeferredValue(rawPlans);
 
   const regions = useMemo(() => {
     const set = new Set<string>();
-    for (const plan of plans ?? []) {
+    for (const plan of deferredPlans) {
       const r = (plan.region ?? "").trim();
       if (r) set.add(r);
     }
     return ["All regions", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [plans]);
+  }, [deferredPlans]);
 
   const plansForRegion = useMemo(() => {
-    if (!plans) return [];
-    if (region === "All regions") return plans;
-    return plans.filter((p) => (p.region ?? "").trim() === region);
-  }, [plans, region]);
+    if (!deferredPlans.length) return [];
+    if (region === "All regions") return deferredPlans;
+    return deferredPlans.filter((p) => (p.region ?? "").trim() === region);
+  }, [deferredPlans, region]);
 
   const countries = useMemo(() => buildCountries(plansForRegion), [plansForRegion]);
   const filtered = useMemo(() => {
@@ -92,17 +135,11 @@ export default function PlansScreen() {
     return countries.filter((c) => c.name.toLowerCase().includes(q) || c.iso2.toLowerCase().includes(q));
   }, [countries, query]);
 
-  return (
-    <AuthenticatedScreenWrapper>
-      <ScrollView
-        style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}
-        contentContainerStyle={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 120,
-        }}
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={false}
-      >
+  const listData = error || showListSkeleton ? [] : filtered;
+
+  const listHeader = useMemo(
+    () => (
+      <View style={{ paddingTop: insets.top + 8 }}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.kicker, isDark && styles.textMutedDark]}>AVAILABLE DESTINATIONS</Text>
@@ -161,99 +198,104 @@ export default function PlansScreen() {
           })}
         </ScrollView>
 
-        {isLoading && !plans ? (
-          <Animated.View entering={FadeIn.duration(180)} style={styles.listWrap}>
-            {Array.from({ length: 7 }).map((_, idx) => (
-              <View
-                key={`skeleton-${idx}`}
-                className="flex flex-row items-center gap-3 py-4 px-4 rounded-2xl  border border-gray-300 dark:border-gray-700"
-                style={[
-                  styles.skeletonRow,
-                  isDark ? styles.skeletonRowDark : styles.skeletonRowLight,
-                  idx < 6 && styles.rowSpacing,
-                ]}
-              >
-                <View style={[styles.skeletonFlag, isDark && styles.skeletonMutedDark]} />
-                <View style={{ flex: 1, gap: 8 }}>
-                  <View style={[styles.skeletonLineWide, isDark && styles.skeletonMutedDark]} />
-                  <View style={[styles.skeletonLineShort, isDark && styles.skeletonMutedDark]} />
-                </View>
-                <ActivityIndicator size="small" color={isDark ? "#93C5FD" : "#2563EB"} />
-              </View>
-            ))}
-
-          </Animated.View>
-        ) : error ? (
-          <View style={styles.center}>
-            <Ionicons
-              name="cloud-offline-outline"
-              size={40}
-              color={isDark ? "rgba(148,163,184,0.55)" : "rgba(100,116,139,0.55)"}
-            />
-            <Text style={[styles.errorTitle, isDark && styles.textLight]}>
-              Couldn&apos;t load plans
-            </Text>
-            <Pressable className="flex flex-row items-center gap-2 " onPress={() => refetch()} style={styles.retryBtn}>
-              <Ionicons name="refresh" size={16} color="#fff" />
-              <Text style={styles.retryText}>Try again</Text>
-            </Pressable>
+        {showUpdatingStrip ? (
+          <View
+            style={[
+              styles.updatingStrip,
+              isDark ? styles.updatingStripDark : styles.updatingStripLight,
+            ]}
+          >
+            <ActivityIndicator size="small" color={isDark ? "#93C5FD" : "#2563EB"} />
+            <Text style={[styles.updatingText, isDark && styles.textMutedDark]}>Updating plans…</Text>
           </View>
-        ) : (
-          <View className="flex flex-col gap-3 px-4" >
-            {filtered.map((country, index) => {
-              const flagEmoji = iso2ToFlagEmoji(country.iso2);
-              const isLast = index === filtered.length - 1;
-              return (
-                <Pressable
-                  key={country.iso2}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(app)/plans/country/[iso2]" as const,
-                      params: { iso2: country.iso2, name: country.name },
-                    })
-                  }
-                  className="flex flex-row items-center gap-3 py-4 px-4 rounded-2xl  border border-gray-300 dark:border-gray-700"
-                  style={({ pressed }) => [
+        ) : null}
+      </View>
+    ),
+    [
+      insets.top,
+      isDark,
+      query,
+      region,
+      regions,
+      refetch,
+      isFetching,
+      showUpdatingStrip,
+      setQuery,
+      setRegion,
+    ]
+  );
 
-                    isDark ? styles.cardDark : styles.cardLight,
-                    !isLast && styles.rowSpacing,
-                    pressed && (isDark ? styles.rowPressedDark : styles.rowPressedLight),
-                  ]}
-                >
-                  {flagEmoji ? (
-                    <Text style={styles.flagEmoji}>{flagEmoji}</Text>
-                  ) : (
-                    <View style={styles.flagCircle}>
-                      <Text style={styles.flagText}>{country.iso2.toUpperCase()}</Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.countryName, isDark && styles.textLight]}>
-                      {country.name}
-                    </Text>
-                    <Text style={[styles.countryMeta, isDark && styles.textMutedDark]}>
-                      {country.plansCount} plan{country.plansCount === 1 ? "" : "s"}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)"}
-                  />
-                </Pressable>
-              );
-            })}
-
-            {filtered.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>
-                  No countries match your search.
-                </Text>
+  const listEmpty = useMemo(() => {
+    if (showListSkeleton) {
+      return (
+        <Animated.View entering={FadeIn.duration(180)} style={styles.listWrap}>
+          {Array.from({ length: 7 }).map((_, idx) => (
+            <View
+              key={`skeleton-${idx}`}
+              className="flex flex-row items-center gap-3 py-4 px-4 rounded-2xl  border border-gray-300 dark:border-gray-700"
+              style={[
+                styles.skeletonRow,
+                isDark ? styles.skeletonRowDark : styles.skeletonRowLight,
+                idx < 6 && styles.rowSpacing,
+              ]}
+            >
+              <View style={[styles.skeletonFlag, isDark && styles.skeletonMutedDark]} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <View style={[styles.skeletonLineWide, isDark && styles.skeletonMutedDark]} />
+                <View style={[styles.skeletonLineShort, isDark && styles.skeletonMutedDark]} />
               </View>
-            ) : null}
-          </View>
-        )}
-      </ScrollView>
+              <ActivityIndicator size="small" color={isDark ? "#93C5FD" : "#2563EB"} />
+            </View>
+          ))}
+        </Animated.View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={styles.center}>
+          <Ionicons
+            name="cloud-offline-outline"
+            size={40}
+            color={isDark ? "rgba(148,163,184,0.55)" : "rgba(100,116,139,0.55)"}
+          />
+          <Text style={[styles.errorTitle, isDark && styles.textLight]}>Couldn&apos;t load plans</Text>
+          <Pressable className="flex flex-row items-center gap-2 " onPress={() => refetch()} style={styles.retryBtn}>
+            <Ionicons name="refresh" size={16} color="#fff" />
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.emptyWrap}>
+        <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>No countries match your search.</Text>
+      </View>
+    );
+  }, [showListSkeleton, error, isDark, refetch]);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: CountryRow; index: number }) => (
+      <View className="px-4">
+        <CountryListRow country={item} isDark={isDark} isLast={index === filtered.length - 1} />
+      </View>
+    ),
+    [isDark, filtered.length]
+  );
+
+  return (
+    <AuthenticatedScreenWrapper>
+      <View style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+        <FlashList
+          data={listData}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.iso2}
+          extraData={isDark}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </AuthenticatedScreenWrapper>
   );
 }
@@ -292,6 +334,24 @@ const styles = StyleSheet.create({
   iconBtnLight: { backgroundColor: "rgba(37,99,235,0.10)" },
   iconBtnDark: { backgroundColor: "rgba(147,197,253,0.12)" },
 
+  updatingStrip: {
+    marginHorizontal: 22,
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  updatingStripLight: {
+    backgroundColor: "rgba(37,99,235,0.08)",
+  },
+  updatingStripDark: {
+    backgroundColor: "rgba(147,197,253,0.10)",
+  },
+  updatingText: { fontSize: 12, fontWeight: "700", color: "#475569" },
+
   regionRow: {
     paddingHorizontal: 22,
     paddingBottom: 12,
@@ -322,9 +382,14 @@ const styles = StyleSheet.create({
   },
 
   center: { alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 10 },
-  loadingText: { fontSize: 12, color: "#64748B", fontWeight: "600" },
   errorTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
-  retryBtn: { marginTop: 6, backgroundColor: "#2563EB", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 },
+  retryBtn: {
+    marginTop: 6,
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
   retryText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
   listWrap: {
@@ -357,7 +422,7 @@ const styles = StyleSheet.create({
   countryName: { fontSize: 14, fontWeight: "800", color: "#0F172A" },
   countryMeta: { fontSize: 12, color: "#64748B", marginTop: 2 },
 
-  emptyWrap: { paddingTop: 30, alignItems: "center" },
+  emptyWrap: { paddingTop: 30, alignItems: "center", paddingHorizontal: 22 },
   emptyText: { fontSize: 12, color: "#64748B", fontWeight: "600" },
   skeletonRow: { minHeight: 76 },
   skeletonRowLight: { backgroundColor: "#FFFFFF" },

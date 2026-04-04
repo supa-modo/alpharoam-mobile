@@ -157,7 +157,7 @@ export default function AppLayout() {
         screenOptions={{ headerShown: false }}
       >
         <Tabs.Screen name="index" />
-        <Tabs.Screen name="plans" />
+        <Tabs.Screen name="plans" options={{ lazy: false }} />
         <Tabs.Screen name="profile" />
       </Tabs>
     </AuthBoundary>

@@ -46,13 +46,19 @@
         }
       },
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "package": "com.supamodo.alpharoammobile"
     },
     "web": {
       "favicon": "./assets/icon.png"
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "87e98e8f-f580-42a8-ad0b-722acdfc58dc"
+      }
+    }
   }
 }
